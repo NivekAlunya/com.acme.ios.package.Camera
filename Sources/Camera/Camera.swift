@@ -41,10 +41,7 @@ actor Camera: NSObject, ICamera {
     
     /// Flag indicating if preview frame emission is currently paused.
     private var isPreviewPaused = false
-    
-    /// Flag indicating if preview stream has been stopped.
-    private var isPreviewStopped = false
-    
+        
     /// Flag indicating if the capture session has been configured.
     private var isCaptureSessionConfigured = false
 
@@ -74,18 +71,12 @@ actor Camera: NSObject, ICamera {
     private func emitPreview(_ ciImage: CIImage) {
         if !isPreviewPaused {
             previewContinuation?.yield(ciImage)
-        } else if isPreviewStopped {
-            previewContinuation?.finish() // Finish stream if preview stopped.
         }
     }
     
     /// Emits a captured photo to the photo stream if not paused or stopped.
     private func emitPhoto(_ photo: AVCapturePhoto) {
-        if !isPreviewPaused {
-            photoContinuation?.yield(photo)
-        } else if isPreviewStopped {
-            photoContinuation?.finish() // Finish stream if preview stopped.
-        }
+        photoContinuation?.yield(photo)
     }
     
     override init() {
@@ -173,8 +164,8 @@ actor Camera: NSObject, ICamera {
             return
         }
         guard isCaptureSessionConfigured else { return }
-        
-        Task.detached {
+        isPreviewPaused = false
+        queue.async {
             self.session.startRunning()
         }
         
@@ -192,10 +183,14 @@ actor Camera: NSObject, ICamera {
         }
     }
     
+    deinit {
+        photoContinuation?.finish()
+        previewContinuation?.finish()
+    }
+    
     /// Initiates a photo capture asynchronously.
     func takePhoto() async {
         let videoOrientation = await getAVCaptureVideoOrientation()
-        Task.detached {
             var photoSettings = AVCapturePhotoSettings()
 
             // Prefer JPEG codec if available.
@@ -203,20 +198,19 @@ actor Camera: NSObject, ICamera {
                 photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
             }
             
-            
             // Flash mode commented out; can be enabled if needed.
             photoSettings.flashMode = await self.isFlashAvailable() ? .auto : .off
             photoSettings.photoQualityPrioritization = .balanced
             
             if let photoOutputVideoConnection = self.photoOutput.connection(with: .video) {
                 // Set video orientation for the photo output connection if supported.
-                if photoOutputVideoConnection.isVideoOrientationSupported, let videoOrientation = videoOrientation {
+                if photoOutputVideoConnection.isVideoRotationAngleSupported(90.0)
+                    , let videoOrientation = videoOrientation {
                     print("videoOrientation \(videoOrientation)")
                     photoOutputVideoConnection.videoOrientation = videoOrientation
                 }
             }
             self.photoOutput.capturePhoto(with: photoSettings, delegate: self)
-        }
     }
     
     /// Maps current device orientation to AVCaptureVideoOrientation asynchronously on the main actor.
@@ -230,21 +224,21 @@ actor Camera: NSObject, ICamera {
     private static func videoOrientationFor(_ deviceOrientation: UIDeviceOrientation) -> AVCaptureVideoOrientation? {
         switch deviceOrientation {
         case .portrait:
-            print("portrait")
+//            print("portrait")
             return AVCaptureVideoOrientation.portrait
         case .portraitUpsideDown:
-            print("portraitUpsideDown")
+//            print("portraitUpsideDown")
             return AVCaptureVideoOrientation.portraitUpsideDown
         case .landscapeLeft:
             // Note: device landscapeLeft maps to videoOrientation landscapeRight.
-            print("landscapeLeft")
+//            print("landscapeLeft")
             return AVCaptureVideoOrientation.landscapeRight
         case .landscapeRight:
             // Note: device landscapeRight maps to videoOrientation landscapeLeft.
-            print("landscapeRight")
+//            print("landscapeRight")
             return AVCaptureVideoOrientation.landscapeLeft
         default:
-            print("landscapeRight")
+//            print("landscapeRight")
             return nil
         }
     }
@@ -259,7 +253,7 @@ actor Camera: NSObject, ICamera {
 // MARK: - AVCapturePhotoCaptureDelegate Implementation
 
 /// Delegate handling photo capture events and forwarding photos to async stream.
-extension Camera: @preconcurrency AVCapturePhotoCaptureDelegate {
+extension Camera: AVCapturePhotoCaptureDelegate {
     
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         guard error == nil else {
@@ -268,7 +262,6 @@ extension Camera: @preconcurrency AVCapturePhotoCaptureDelegate {
         }
         Task {
             // Stop session and emit the captured photo asynchronously.
-            await self.stop()
             await self.emitPhoto(photo)
         }
         
@@ -278,30 +271,22 @@ extension Camera: @preconcurrency AVCapturePhotoCaptureDelegate {
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate Implementation
 
 /// Delegate handling video data output sample buffers and forwarding frames to preview stream.
-extension Camera: @preconcurrency AVCaptureVideoDataOutputSampleBufferDelegate {
+extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
     
     nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        let buffer = sampleBuffer
-        let conn = connection
-        Task { [weak self] in
-            guard let self else { return }
-            // Process the sample buffer asynchronously.
-            await self.process(buffer: buffer, connection: conn)
-        }
-    }
-    
-    /// Processes CMSampleBuffer to extract CIImage and update video orientation.
-    private func process( buffer: CMSampleBuffer, connection: AVCaptureConnection) async {
-        guard let pixelBuffer = buffer.imageBuffer else { return }
-
+        
+        guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
+        let image = CIImage(cvPixelBuffer: pixelBuffer)
         // Update connection video orientation based on current device orientation if supported.
-        if connection.isVideoOrientationSupported
-            , let videoOrientation = await getAVCaptureVideoOrientation() {
-            connection.videoOrientation = videoOrientation
+        Task { @MainActor in
+            if connection.isVideoOrientationSupported
+                , let videoOrientation = await getAVCaptureVideoOrientation() {
+                connection.videoOrientation = videoOrientation
+            }
+            // Emit the preview CIImage frame to the preview stream.
+            await emitPreview(image)
         }
         
-        // Emit the preview CIImage frame to the preview stream.
-        await emitPreview(CIImage(cvPixelBuffer: pixelBuffer))
     }
     
 }

@@ -13,21 +13,24 @@ import SwiftUI
 /// CameraModel manages camera configuration, preview streaming, and photo capture for SwiftUI views.
 /// - Usage: Call `configure()` on appear, then `startStreaming()`. Use `.preview` to display the current camera image.
 @MainActor
-class CameraModel: ObservableObject {
+public class CameraModel: ObservableObject {
     /// Camera implementation conforming to ICamera (default: Camera)
     private let camera : any ICamera
     
     /// Most recent camera preview frame as a SwiftUI Image
     @Published var preview: Image?
+    /// Photo camera returned by the component
+    @Published var capture: AVCapturePhoto?
     /// Indicates if a photo was captured (not used in this version)
     @Published var isPhotoCaptured = false
+    /// Photo camera returned by the component
+    private var photo: AVCapturePhoto?
     /// Tracks configuration state to avoid redundant setup
     private var isConfigured = false
     /// Task for streaming preview frames asynchronously
     private var previewTask: Task<Void, Never>?
     /// Task for asynchronously handling photo capture events
     private var photoTask: Task<Void, Never>?
-
     /// Initialize with any ICamera implementation (default: Camera)
     init(camera: any ICamera = Camera()) {
         self.camera = camera
@@ -40,17 +43,15 @@ class CameraModel: ObservableObject {
         isConfigured = true
         print("\(camera)")
         await camera.configure(preset: .photo)
+        previewTask = Task { await handleCameraPreviews() }
+        photoTask = Task { await handlePhotoCapture() }
     }
     
     /// Start camera session and begin streaming preview/photo events.
     func startStreaming() async {
-        previewTask?.cancel()
-        photoTask?.cancel()
-        
+        isPhotoCaptured = false
         await camera.start()
 
-        previewTask = Task { await handleCameraPreviews() }
-        photoTask = Task { await handlePhotoCapture() }
     }
     
     /// Asynchronously handle new preview frames from the camera.
@@ -73,6 +74,30 @@ class CameraModel: ObservableObject {
             await camera.takePhoto()
         }
     }
+
+    func handleButtonExit() {
+        Task {
+            stop()
+            capture = nil
+        }
+    }
+
+    
+    func handleButtonSelectPhoto() {
+        capture = photo
+    }
+    
+    func handleRejectPhoto() {
+        photo = nil
+        Task {
+            await startStreaming()
+        }
+    }
+    
+    deinit {
+        previewTask?.cancel()
+        photoTask?.cancel()
+    }
     
     /// Update the preview property with new camera image data.
     func setPreview(image: CIImage?) async {
@@ -84,21 +109,11 @@ class CameraModel: ObservableObject {
     }
 
     /// Update preview with captured photo and stop the camera.
-    func setPhoto(photo: AVCapturePhoto?) async {
-        guard let cgImage = photo?.cgImageRepresentation()
-            , let metadataOrientation = photo?.metadata[String(kCGImagePropertyOrientation)] as? UInt32
-            , let cgImageOrientation = CGImagePropertyOrientation(rawValue: metadataOrientation) as? UInt8
-            , let imageOrientation = Image.Orientation(rawValue: cgImageOrientation)
-        else {
-            self.preview = nil
-            return
-        }
-        
-        
-        Task { @MainActor in
-            await camera.stop()
-            self.preview = Image(decorative: cgImage, scale: 1, orientation: imageOrientation)
-        }
+    func setPhoto(photo: AVCapturePhoto) async {
+        self.photo = photo
+        self.isPhotoCaptured = true
+        self.preview = Image(avCapturePhoto: photo)
+        await camera.stop()
     }
     
     /// Cancel preview/photo tasks and stop the camera immediately.
@@ -109,4 +124,33 @@ class CameraModel: ObservableObject {
         Task { await camera.stop() }
     }
         
+}
+
+extension Image.Orientation {
+    init(_ cgOrientation: CGImagePropertyOrientation) {
+        switch cgOrientation {
+            case .up: self = .up
+            case .upMirrored: self = .upMirrored
+            case .down: self = .down
+            case .downMirrored: self = .downMirrored
+            case .left: self = .left
+            case .leftMirrored: self = .leftMirrored
+            case .right: self = .right
+            case .rightMirrored: self = .rightMirrored
+        }
+    }
+
+}
+
+extension Image {
+    public init?(avCapturePhoto: AVCapturePhoto) {
+        guard let cgImage = avCapturePhoto.cgImageRepresentation()
+            , let metadataOrientation = avCapturePhoto.metadata[String(kCGImagePropertyOrientation)]
+                , let cgImageOrientation = CGImagePropertyOrientation(rawValue: metadataOrientation as! UInt32)
+        else {
+            return nil
+        }
+        let imageOrientation = Image.Orientation(cgImageOrientation)
+        self = Image(decorative: cgImage, scale: 1, orientation: imageOrientation)
+    }
 }
