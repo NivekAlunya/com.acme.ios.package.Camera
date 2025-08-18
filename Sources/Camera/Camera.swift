@@ -3,111 +3,82 @@
 //  camera
 //
 //  Created by Kevin LAUNAY on 12/08/2025.
-//
+//  
 
 import Foundation
 @preconcurrency import AVFoundation
 import UIKit
 
-protocol ICamera: Sendable {
+protocol ICamera: Actor {
     var previewStream: AsyncStream<CIImage> { get }
     var photoStream: AsyncStream<AVCapturePhoto>  { get }
     func configure(preset: AVCaptureSession.Preset)
     func start() async
     func stop() async
-    func takePhoto()
+    func takePhoto() async
 }
 
-class Camera: NSObject, ICamera, @unchecked Sendable {
+actor Camera: NSObject, ICamera {
+    
     private let session = AVCaptureSession()
+    
     private var deviceInput: AVCaptureDeviceInput!
+    
     private let photoOutput = AVCapturePhotoOutput()
+    
     private let videoOutput = AVCaptureVideoDataOutput()
-    private var orientation: UIDeviceOrientation! = .unknown
+    
     private let queue = DispatchQueue(label: "CameraSessionQueue")
     
     private var isPreviewPaused = false
-    private var isPreviewStopped = false
-    private var isCaptureSessionConfigured = false
-    private var device: UIDevice!
     
-    private var appendPreviewStream: ((CIImage) -> Void)?
+    private var isPreviewStopped = false
+    
+    private var isCaptureSessionConfigured = false
+
+    private var previewContinuation: AsyncStream<CIImage>.Continuation?
+    
     private(set) lazy var previewStream: AsyncStream<CIImage> = {
         AsyncStream { continuation in
-            appendPreviewStream = { ciImage in
-                if !self.isPreviewPaused {
-                    continuation.yield(ciImage)
-                } else if self.isPreviewStopped {
-                    continuation.finish()
-                }
-            }
+            self.previewContinuation = continuation
         }
     }()
     
-    private var appendPhotoStream: ((AVCapturePhoto) -> Void)?
+    private var photoContinuation: AsyncStream<AVCapturePhoto>.Continuation?
+    
     private(set) lazy var photoStream: AsyncStream<AVCapturePhoto> = {
         AsyncStream { continuation in
-            appendPhotoStream = { capture in
-                if !self.isPreviewPaused {
-                    continuation.yield(capture)
-                } else if self.isPreviewStopped {
-                    continuation.finish()
-                }
-            }
+            self.photoContinuation = continuation
         }
     }()
+
+    private func emitPreview(_ ciImage: CIImage) {
+        if !isPreviewPaused {
+            previewContinuation?.yield(ciImage)
+        } else if isPreviewStopped {
+            previewContinuation?.finish()
+        }
+    }
     
+    private func emitPhoto(_ photo: AVCapturePhoto) {
+        if !isPreviewPaused {
+            photoContinuation?.yield(photo)
+        } else if isPreviewStopped {
+            photoContinuation?.finish()
+        }
+    }
     
     override init() {
         super.init()
-        
+        Task { [weak self] in
+            await self?.setupDeviceOrientationChanges()
+        }
+    }
+    
+    private func setupDeviceOrientationChanges() {
         Task { @MainActor in
-            device = UIDevice.current
-            device.beginGeneratingDeviceOrientationNotifications()
-            NotificationCenter.default.addObserver(self, selector: #selector(updateForDeviceOrientation), name: UIDevice.orientationDidChangeNotification, object: device)
+            UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         }
-        
-    }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self, name: UIDevice.orientationDidChangeNotification, object: device)
-    }
-    
-    
-    @objc
-    func updateForDeviceOrientation() {
-        //TODO: Figure out if we need this for anything.
-    }
-    
-    func configure(preset: AVCaptureSession.Preset = .photo) {
-        
-        self.session.beginConfiguration()
-        self.session.sessionPreset = preset
-        
-        guard let camera = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: camera),
-              self.session.canAddInput(input) else {
-            print("Failed to set up camera input")
-            self.session.commitConfiguration()
-            return
-        }
-        deviceInput = input
-        self.session.addInput(deviceInput)
-        if self.session.canAddOutput(self.photoOutput) {
-            self.session.addOutput(self.photoOutput)
-        } else {
-            print("Failed to add photo output")
-        }
-        
-        if self.session.canAddOutput(self.videoOutput) {
-            videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_preview_video_output"))
-            self.session.addOutput(self.videoOutput)
-        }
-        
-        self.session.commitConfiguration()
-        
-        isCaptureSessionConfigured = true
-        
     }
     
     private func checkAuthorization() async -> Bool {
@@ -133,6 +104,39 @@ class Camera: NSObject, ICamera, @unchecked Sendable {
     }
     
     
+    //MARK: - ICamera Implementation
+    
+    func configure(preset: AVCaptureSession.Preset = .photo) {
+        self.session.beginConfiguration()
+        self.session.sessionPreset = preset
+        
+        guard let camera = AVCaptureDevice.default(for: .video),
+              let input = try? AVCaptureDeviceInput(device: camera),
+              self.session.canAddInput(input) else {
+            print("Failed to set up camera input")
+            self.session.commitConfiguration()
+            return
+        }
+        deviceInput = input
+        self.session.addInput(deviceInput)
+        
+        if self.session.canAddOutput(self.photoOutput) {
+            self.session.addOutput(self.photoOutput)
+        } else {
+            print("Failed to add photo output")
+        }
+        
+        if self.session.canAddOutput(self.videoOutput) {
+            videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_preview_video_output"))
+            self.session.addOutput(self.videoOutput)
+        }
+        
+        self.session.commitConfiguration()
+        
+        isCaptureSessionConfigured = true
+
+    }
+    
     func start() async {
         let authorized = await checkAuthorization()
         guard authorized else {
@@ -141,12 +145,13 @@ class Camera: NSObject, ICamera, @unchecked Sendable {
         }
         guard isCaptureSessionConfigured else { return }
         
-        queue.async { [session] in
-            session.startRunning()
+        Task.detached {
+            self.session.startRunning()
         }
+        
     }
     
-    func stop() {
+    func stop() async {
         guard isCaptureSessionConfigured else { return }
         
         if session.isRunning {
@@ -157,31 +162,49 @@ class Camera: NSObject, ICamera, @unchecked Sendable {
         }
     }
     
-    func takePhoto() {
-        queue.async {
+    func takePhoto() async {
+        let videoOrientation = await getAVCaptureVideoOrientation()
+        Task.detached {
             var photoSettings = AVCapturePhotoSettings()
-            
+
             if self.photoOutput.availablePhotoCodecTypes.contains(AVVideoCodecType.jpeg) {
                 photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
             }
-            
-            let isFlashAvailable = self.deviceInput?.device.isFlashAvailable ?? false
-            photoSettings.flashMode = isFlashAvailable ? .auto : .off
+
+//            let isFlashAvailable = self.deviceInput?.device.isFlashAvailable ?? false
+//            photoSettings.flashMode = isFlashAvailable ? .auto : .off
             photoSettings.photoQualityPrioritization = .balanced
+            
             if let photoOutputVideoConnection = self.photoOutput.connection(with: .video) {
-                if photoOutputVideoConnection.isVideoOrientationSupported,
-                   let videoOrientation = self.videoOrientationFor(self.orientation) {
-                    print("\(videoOrientation) :: \(self.orientation.rawValue)")
+                if photoOutputVideoConnection.isVideoOrientationSupported, let videoOrientation = videoOrientation {
+                    print("videoOrientation \(videoOrientation)")
                     photoOutputVideoConnection.videoOrientation = videoOrientation
                 }
             }
             self.photoOutput.capturePhoto(with: photoSettings, delegate: self)
         }
     }
-        
-    // Optionally expose the session for preview layer usage
-    func getSession() -> AVCaptureSession {
-        return session
+    
+    func getAVCaptureVideoOrientation() async -> AVCaptureVideoOrientation?  {
+        await Task { @MainActor in
+            switch UIDevice.current.orientation {
+            case .portrait:
+                print("portrait")
+                return AVCaptureVideoOrientation.portrait
+            case .portraitUpsideDown:
+                print("portraitUpsideDown")
+                return AVCaptureVideoOrientation.portraitUpsideDown
+            case .landscapeLeft:
+                print("landscapeLeft")
+                return AVCaptureVideoOrientation.landscapeRight
+            case .landscapeRight:
+                print("landscapeRight")
+                return AVCaptureVideoOrientation.landscapeLeft
+            default:
+                print("landscapeRight")
+                return nil
+            }
+        }.value
     }
 
     private func videoOrientationFor(_ deviceOrientation: UIDeviceOrientation) -> AVCaptureVideoOrientation? {
@@ -203,42 +226,46 @@ class Camera: NSObject, ICamera, @unchecked Sendable {
             return nil
         }
     }
-
+    
 }
 
-// MARK: - AVCapturePhotoCaptureDelegate
-extension Camera: AVCapturePhotoCaptureDelegate {
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+extension Camera: @preconcurrency AVCapturePhotoCaptureDelegate {
+    
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         guard error == nil else {
             print("Error capturing photo: \(error!.localizedDescription)")
             return
         }
-        self.stop()
-
-        appendPhotoStream?(photo)
+        Task {
+            await self.stop()
+            await self.emitPhoto(photo)
+        }
         
     }
 }
 
 
-extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
+extension Camera: @preconcurrency AVCaptureVideoDataOutputSampleBufferDelegate {
     
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        Task {
-            await process(buffer: sampleBuffer, connection: connection)
+    nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        let buffer = sampleBuffer
+        let conn = connection
+        Task { [weak self] in
+            guard let self else { return }
+            await self.process(buffer: buffer, connection: conn)
         }
     }
     
-    @MainActor
-    private func process( buffer: CMSampleBuffer, connection: AVCaptureConnection) {
-        guard let pixelBuffer = buffer.imageBuffer, let device = device else { return }
-        orientation = device.orientation
-        if connection.isVideoOrientationSupported,
-           let videoOrientation = videoOrientationFor(orientation) {
+    private func process( buffer: CMSampleBuffer, connection: AVCaptureConnection) async {
+        guard let pixelBuffer = buffer.imageBuffer else { return }
+
+        if connection.isVideoOrientationSupported
+            , let videoOrientation = await getAVCaptureVideoOrientation() {
             connection.videoOrientation = videoOrientation
         }
         
-        appendPreviewStream?(CIImage(cvPixelBuffer: pixelBuffer))
+        await emitPreview(CIImage(cvPixelBuffer: pixelBuffer))
     }
     
 }
+

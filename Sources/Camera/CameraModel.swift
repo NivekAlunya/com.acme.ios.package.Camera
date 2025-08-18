@@ -8,7 +8,7 @@
 import Foundation
 import UIKit
 import SwiftUI
-import AVFoundation
+@preconcurrency import AVFoundation
 
 /// After initializing CameraModel, call `configureAndStart()` from `.task` or `.onAppear`.
 @MainActor
@@ -25,7 +25,7 @@ class CameraModel: ObservableObject {
     /// Call this after initializing CameraModel, e.g. using .task or .onAppear in SwiftUI.
     func configureAndStart() async {
         print("\(camera)")
-        camera.configure(preset: .photo)
+        await camera.configure(preset: .photo)
         await camera.start()
         Task {
             await handleCameraPreviews()
@@ -36,19 +36,21 @@ class CameraModel: ObservableObject {
     }
     
     private func handleCameraPreviews() async {
-        for await image in camera.previewStream {
+        for await image in await camera.previewStream {
             await setPreview(image: image)
         }
     }
 
     private func handlePhotoCapture() async {
-        for await photo in camera.photoStream {
+        for await photo in await camera.photoStream {
             await setPhoto(photo: photo)
         }
     }
 
     func handleButtonPhoto() {
-        camera.takePhoto()
+        Task {
+            await camera.takePhoto()
+        }
     }
     
     func setPreview(image: CIImage?) async {
