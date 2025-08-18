@@ -30,6 +30,7 @@ actor Camera: NSObject, ICamera {
     /// Input device for video capture.
     private var deviceInput: AVCaptureDeviceInput!
     
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator!
     /// Output for capturing photos.
     private let photoOutput = AVCapturePhotoOutput()
     
@@ -135,6 +136,11 @@ actor Camera: NSObject, ICamera {
             return
         }
         deviceInput = input
+        
+        rotationCoordinator = AVCaptureDevice.RotationCoordinator(
+            device: deviceInput.device,
+            previewLayer: nil)
+
         self.session.addInput(deviceInput)
         
         // Add photo output if supported.
@@ -279,14 +285,10 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
         let image = CIImage(cvPixelBuffer: pixelBuffer)
         // Update connection video orientation based on current device orientation if supported.
         Task { @MainActor in
-            if connection.isVideoOrientationSupported
-                , let videoOrientation = await getAVCaptureVideoOrientation() {
-                connection.videoOrientation = videoOrientation
-            }
+            connection.videoRotationAngle = await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
+            
             // Emit the preview CIImage frame to the preview stream.
             await emitPreview(image)
         }
-        
     }
-    
 }
