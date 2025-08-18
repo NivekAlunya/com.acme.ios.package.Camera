@@ -17,22 +17,26 @@ class CameraModel: ObservableObject {
     
     @Published var preview: Image?
     @Published var isPhotoCaptured = false
-    
+    private var isConfigured = false
+    private var previewTask: Task<Void, Never>?
+    private var photoTask: Task<Void, Never>?
+
     init(camera: any ICamera = Camera()) {
         self.camera = camera
+        
     }
     
     /// Call this after initializing CameraModel, e.g. using .task or .onAppear in SwiftUI.
     func configureAndStart() async {
+        guard !isConfigured else { return }
+        isConfigured = true
         print("\(camera)")
         await camera.configure(preset: .photo)
         await camera.start()
-        Task {
-            await handleCameraPreviews()
-        }
-        Task {
-            await handlePhotoCapture()
-        }
+
+        // In configureAndStart:
+        previewTask = Task { await handleCameraPreviews() }
+        photoTask = Task { await handlePhotoCapture() }
     }
     
     private func handleCameraPreviews() async {
