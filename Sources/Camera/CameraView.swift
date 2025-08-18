@@ -33,7 +33,8 @@ public struct CameraView: View {
             }.padding(8)
         }
         .task {
-            await model.configureAndStart()
+            await model.configure()
+            await model.startStreaming()
         }
     }
 }
