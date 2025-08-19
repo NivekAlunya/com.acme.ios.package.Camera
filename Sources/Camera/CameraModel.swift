@@ -50,7 +50,7 @@ public class CameraModel: ObservableObject {
     /// Prepare the camera for use. Should be called once on appear.
     func configure(preset: AVCaptureSession.Preset = .photo, position : AVCaptureDevice.Position = .back) async {
         guard !isConfigured else { return }
-        await camera.configure(preset: preset, position: position)
+        await camera.configure(preset: preset, position: position, deviceType: nil)
         isConfigured = true
     }
     

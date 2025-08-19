@@ -15,7 +15,7 @@ import UIKit
 protocol ICamera: Actor {
     var previewStream: AsyncStream<CIImage> { get }
     var photoStream: AsyncStream<AVCapturePhoto>  { get }
-    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position)
+    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position, deviceType: AVCaptureDevice.DeviceType?)
     func start() async
     func stop() async
     func takePhoto() async
@@ -120,12 +120,17 @@ actor Camera: NSObject, ICamera {
     }
         
     //MARK: - ICamera Implementation
+    
     /// Configures the capture session with input device and outputs.
-    func configure(preset: AVCaptureSession.Preset = .photo, position: AVCaptureDevice.Position = .back) {
+    /// - Parameters:
+    ///   - preset: The session preset defining capture quality.
+    ///   - position: The camera position (front or back).
+    ///   - deviceType: Optional specific device type to select.
+    func configure(preset: AVCaptureSession.Preset = .photo, position: AVCaptureDevice.Position = .back, deviceType: AVCaptureDevice.DeviceType?) {
     
         if session.isRunning {
                 session.stopRunning()
-                session.removeInput(deviceInput )
+                session.removeInput(deviceInput)
         }
         
         self.session.beginConfiguration()
@@ -142,7 +147,16 @@ actor Camera: NSObject, ICamera {
         ]
 
         let discoverySession = AVCaptureDevice.DiscoverySession.init(deviceTypes: cameras, mediaType: AVMediaType.video, position: position)
-        guard let camera = discoverySession.devices.count > 0 ? AVCaptureDevice.default(discoverySession.devices[0].deviceType, for: .video, position: position) : AVCaptureDevice.default(for: .video),
+        print(discoverySession.devices)
+        var discoveredDevice: AVCaptureDevice? = discoverySession.devices.first
+        
+        if let deviceType {
+            discoveredDevice = discoverySession.devices.first { device in
+                device.deviceType == deviceType
+            }
+        }
+        
+        guard let camera = discoveredDevice != nil ? AVCaptureDevice.default(discoveredDevice!.deviceType, for: .video, position: position) : AVCaptureDevice.default(for: .video),
               let input = try? AVCaptureDeviceInput(device: camera),
               self.session.canAddInput(input) else {
             self.session.commitConfiguration()
@@ -176,6 +190,7 @@ actor Camera: NSObject, ICamera {
     }
     
     /// Starts the capture session if authorized and configured.
+    /// Ensures the session is not already running before starting.
     func start() async {
         let authorized = await checkAuthorization()
         guard authorized else {
@@ -194,7 +209,7 @@ actor Camera: NSObject, ICamera {
         
     }
     
-    /// Stops the capture session safely.
+    /// Stops the capture session safely and pauses preview emission.
     func stop() async {
         guard isCaptureSessionConfigured else { return }
         
@@ -211,12 +226,14 @@ actor Camera: NSObject, ICamera {
         previewContinuation?.finish()
     }
     
-    /// Initiates a photo capture asynchronously.
+    /// Initiates a photo capture asynchronously with appropriate settings.
+    /// Sets photo codec, flash mode, and video orientation if supported.
     func takePhoto() async {
         let videoOrientation = await getAVCaptureVideoOrientation()
             var photoSettings = AVCapturePhotoSettings()
 
             // Prefer JPEG codec if available.
+            print(self.photoOutput.availablePhotoCodecTypes)
             if self.photoOutput.availablePhotoCodecTypes.contains(AVVideoCodecType.jpeg) {
                 photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
             }
@@ -236,7 +253,8 @@ actor Camera: NSObject, ICamera {
             self.photoOutput.capturePhoto(with: photoSettings, delegate: self)
     }
     
-    /// Maps current device orientation to AVCaptureVideoOrientation asynchronously on the main actor.
+    /// Retrieves the current AVCaptureVideoOrientation based on device orientation asynchronously.
+    /// - Returns: Optional AVCaptureVideoOrientation corresponding to device orientation.
     func getAVCaptureVideoOrientation() async -> AVCaptureVideoOrientation?  {
         await Task { @MainActor in
             Camera.videoOrientationFor(UIDevice.current.orientation)
@@ -247,25 +265,20 @@ actor Camera: NSObject, ICamera {
     private static func videoOrientationFor(_ deviceOrientation: UIDeviceOrientation) -> AVCaptureVideoOrientation? {
         switch deviceOrientation {
         case .portrait:
-//            print("portrait")
             return AVCaptureVideoOrientation.portrait
         case .portraitUpsideDown:
-//            print("portraitUpsideDown")
             return AVCaptureVideoOrientation.portraitUpsideDown
         case .landscapeLeft:
-            // Note: device landscapeLeft maps to videoOrientation landscapeRight.
-//            print("landscapeLeft")
             return AVCaptureVideoOrientation.landscapeRight
         case .landscapeRight:
-            // Note: device landscapeRight maps to videoOrientation landscapeLeft.
-//            print("landscapeRight")
             return AVCaptureVideoOrientation.landscapeLeft
         default:
-//            print("landscapeRight")
             return nil
         }
     }
     
+    /// Checks asynchronously if the current device input supports flash.
+    /// - Returns: Boolean indicating flash availability.
     @MainActor
     private func isFlashAvailable() async -> Bool {
         await self.deviceInput.device.isFlashAvailable
@@ -290,7 +303,6 @@ extension Camera: AVCapturePhotoCaptureDelegate {
         
     }
 }
-
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate Implementation
 
 /// Delegate handling video data output sample buffers and forwarding frames to preview stream.
@@ -360,3 +372,4 @@ enum AVCaptureSessionPreset: CaseIterable {
     }
     
 }
+
