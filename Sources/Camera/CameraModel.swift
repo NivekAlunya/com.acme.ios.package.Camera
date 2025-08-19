@@ -20,7 +20,7 @@ public class CameraModel: ObservableObject {
     @Published var preview: Image?
     /// Photo camera returned by the component
     @Published var capture: AVCapturePhoto?
-    /// Indicates if a photo was captured (not used in this version)
+    /// Indicates if a photo has been captured and is awaiting confirmation.
     @Published var isPhotoCaptured = false
     @Published var position : AVCaptureDevice.Position = .back
     @Published var preset = 0 {
@@ -34,8 +34,6 @@ public class CameraModel: ObservableObject {
 
     /// Photo camera returned by the component
     private var photo: AVCapturePhoto?
-    /// Tracks configuration state to avoid redundant setup
-    private var isConfigured = false
     /// Task for streaming preview frames asynchronously
     private var previewTask: Task<Void, Never>?
     /// Task for asynchronously handling photo capture events
@@ -47,25 +45,16 @@ public class CameraModel: ObservableObject {
         photoTask = Task { await handlePhotoCapture() }
     }
     
-    /// Prepare the camera for use. Should be called once on appear.
-    func configure(preset: AVCaptureSession.Preset = .photo, position : AVCaptureDevice.Position = .back) async {
-        guard !isConfigured else { return }
-        await camera.configure(preset: preset, position: position, deviceType: nil)
-        isConfigured = true
-    }
-    
     func start() async {
-        await configure(preset: presets[preset].preset, position: position)
-        guard isConfigured else {
-            return
-        }
-        await startStreaming()
-    }
-    /// Start camera session and begin streaming preview/photo events.
-    private func startStreaming() async {
-        isPhotoCaptured = false
-        await camera.start()
+        do {
+            try await camera.configure(preset: presets[preset].preset, position: position, deviceType: nil)
 
+            isPhotoCaptured = false
+            await camera.start()
+        } catch {
+            print("Failed to start camera: \(error)")
+            // Handle error appropriately, e.g., show an alert to the user
+        }
     }
     
     /// Asynchronously handle new preview frames from the camera.
@@ -91,20 +80,18 @@ public class CameraModel: ObservableObject {
 
     func handleButtonExit() {
         Task {
-            stop()
+            await stop()
             capture = nil
         }
     }
     
     private func handleMenuPreset(_ preset: AVCaptureSession.Preset) {
-        isConfigured = false
         Task {
             await start()
         }
     }
 
     func handleSwitchPosition() {
-        isConfigured = false
         Task {
             position = position == .back ? AVCaptureDevice.Position.front : AVCaptureDevice.Position.back
             await start()
@@ -119,7 +106,7 @@ public class CameraModel: ObservableObject {
     func handleRejectPhoto() {
         photo = nil
         Task {
-            await startStreaming()
+            await start()
         }
     }
     
@@ -147,39 +134,10 @@ public class CameraModel: ObservableObject {
     
     /// Cancel preview/photo tasks and stop the camera immediately.
     // Note: Cannot reliably await stop() in deinit; call stop() manually if needed before deallocation.
-    func stop() {
+    func stop() async {
         previewTask?.cancel()
         photoTask?.cancel()
-        Task { await camera.stop() }
+        await camera.stop()
     }
         
-}
-
-extension Image.Orientation {
-    init(_ cgOrientation: CGImagePropertyOrientation) {
-        switch cgOrientation {
-            case .up: self = .up
-            case .upMirrored: self = .upMirrored
-            case .down: self = .down
-            case .downMirrored: self = .downMirrored
-            case .left: self = .left
-            case .leftMirrored: self = .leftMirrored
-            case .right: self = .right
-            case .rightMirrored: self = .rightMirrored
-        }
-    }
-
-}
-
-extension Image {
-    public init?(avCapturePhoto: AVCapturePhoto) {
-        guard let cgImage = avCapturePhoto.cgImageRepresentation()
-            , let metadataOrientation = avCapturePhoto.metadata[String(kCGImagePropertyOrientation)]
-                , let cgImageOrientation = CGImagePropertyOrientation(rawValue: metadataOrientation as! UInt32)
-        else {
-            return nil
-        }
-        let imageOrientation = Image.Orientation(cgImageOrientation)
-        self = Image(decorative: cgImage, scale: 1, orientation: imageOrientation)
-    }
 }

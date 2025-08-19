@@ -39,12 +39,15 @@ public struct CameraView: View {
                         model.handleRejectPhoto()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                    }.padding(.trailing, 16)
+                    }
+                    .accessibilityLabel("Reject Photo")
+                    .padding(.trailing, 16)
                     Button {
                         model.handleButtonSelectPhoto()
                     } label: {
                         Image(systemName: "checkmark.circle.fill")
                     }
+                    .accessibilityLabel("Accept Photo")
                         
                 } else {
                     Picker("Select preset", selection: $model.preset) {
@@ -53,7 +56,7 @@ public struct CameraView: View {
                                 .foregroundStyle(Color.white)
                         }
                     }
-                    .pickerStyle(.wheel)
+                    .pickerStyle(.menu)
                     
                     Button {
                         model.handleButtonExit()
@@ -61,26 +64,28 @@ public struct CameraView: View {
                     } label: {
                         Image(systemName: "xmark")
                     }
+                    .accessibilityLabel("Close Camera")
                     Spacer()
                     Button {
                         model.handleSwitchPosition()
                     } label: {
                         Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90.camera")
                     }
+                    .accessibilityLabel("Switch Camera")
                     Spacer()
                     Button {
                         model.handleButtonPhoto()
                     } label: {
                         Image(systemName: "camera.circle")
                     }
+                    .accessibilityLabel("Take Photo")
 
                 }
             }
             .font(.largeTitle)
             .symbolRenderingMode(.multicolor)
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .frame(height: 120)
+            .padding(.horizontal)
+            .padding(.vertical, 20)
             .frame(maxWidth: .infinity)
             .background {
                 Color.black.opacity(0.5)

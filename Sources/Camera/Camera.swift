@@ -11,11 +11,18 @@ import Foundation
 @preconcurrency import AVFoundation
 import UIKit
 
+enum CameraError: Error {
+    case cameraUnavailable
+    case cannotAddInput
+    case cannotAddOutput
+    case creationFailed
+}
+
 /// Async camera interface defining preview and photo streams and control methods.
 protocol ICamera: Actor {
     var previewStream: AsyncStream<CIImage> { get }
     var photoStream: AsyncStream<AVCapturePhoto>  { get }
-    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position, deviceType: AVCaptureDevice.DeviceType?)
+    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position, deviceType: AVCaptureDevice.DeviceType?) throws
     func start() async
     func stop() async
     func takePhoto() async
@@ -28,9 +35,9 @@ actor Camera: NSObject, ICamera {
     private let session = AVCaptureSession()
     
     /// Input device for video capture.
-    private var deviceInput: AVCaptureDeviceInput!
+    private var deviceInput: AVCaptureDeviceInput?
     
-    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator!
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
     /// Output for capturing photos.
     private let photoOutput = AVCapturePhotoOutput()
     
@@ -95,6 +102,12 @@ actor Camera: NSObject, ICamera {
         }
     }
     
+    deinit {
+        Task { @MainActor in
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        }
+    }
+
     /// Checks and requests camera authorization asynchronously.
     private func checkAuthorization() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -126,67 +139,65 @@ actor Camera: NSObject, ICamera {
     ///   - preset: The session preset defining capture quality.
     ///   - position: The camera position (front or back).
     ///   - deviceType: Optional specific device type to select.
-    func configure(preset: AVCaptureSession.Preset = .photo, position: AVCaptureDevice.Position = .back, deviceType: AVCaptureDevice.DeviceType?) {
-    
-        if session.isRunning {
-                session.stopRunning()
-                session.removeInput(deviceInput)
-        }
-        
-        self.session.beginConfiguration()
-        self.session.sessionPreset = preset
-        
-        // Setup video input device.
-        let cameras = [
-            AVCaptureDevice.DeviceType.builtInDualCamera,
-            AVCaptureDevice.DeviceType.builtInTripleCamera,
-            AVCaptureDevice.DeviceType.builtInDualWideCamera,
-            AVCaptureDevice.DeviceType.builtInTrueDepthCamera,
-            AVCaptureDevice.DeviceType.builtInUltraWideCamera,
-            AVCaptureDevice.DeviceType.builtInWideAngleCamera,
-        ]
+    func configure(preset: AVCaptureSession.Preset = .photo, position: AVCaptureDevice.Position = .back, deviceType: AVCaptureDevice.DeviceType?) throws {
 
-        let discoverySession = AVCaptureDevice.DiscoverySession.init(deviceTypes: cameras, mediaType: AVMediaType.video, position: position)
-        print(discoverySession.devices)
-        var discoveredDevice: AVCaptureDevice? = discoverySession.devices.first
-        
-        if let deviceType {
-            discoveredDevice = discoverySession.devices.first { device in
-                device.deviceType == deviceType
+        if session.isRunning {
+            session.stopRunning()
+            if let deviceInput {
+                session.removeInput(deviceInput)
             }
         }
         
-        guard let camera = discoveredDevice != nil ? AVCaptureDevice.default(discoveredDevice!.deviceType, for: .video, position: position) : AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: camera),
-              self.session.canAddInput(input) else {
-            self.session.commitConfiguration()
-            return
-        }
-        deviceInput = input
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
         
-        rotationCoordinator = AVCaptureDevice.RotationCoordinator(
-            device: deviceInput.device,
-            previewLayer: nil)
+        session.sessionPreset = preset
 
-        self.session.addInput(deviceInput)
+        // Setup video input device
+        let cameras = [
+            .builtInDualCamera, .builtInTripleCamera, .builtInDualWideCamera,
+            .builtInTrueDepthCamera, .builtInUltraWideCamera, .builtInWideAngleCamera
+        ]
         
-        // Add photo output if supported.
-        if self.session.canAddOutput(self.photoOutput) {
-            self.session.addOutput(self.photoOutput)
+        let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: cameras, mediaType: .video, position: position)
+
+        let discoveredDevice: AVCaptureDevice?
+        if let deviceType {
+            discoveredDevice = discoverySession.devices.first { $0.deviceType == deviceType }
         } else {
-            print("Failed to add photo output")
+            discoveredDevice = discoverySession.devices.first
         }
         
-        // Add video data output for preview frames.
-        if self.session.canAddOutput(self.videoOutput) {
-            videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_preview_video_output"))
-            self.session.addOutput(self.videoOutput)
+        guard let camera = discoveredDevice ?? AVCaptureDevice.default(for: .video) else {
+            throw CameraError.cameraUnavailable
         }
         
-        self.session.commitConfiguration()
+        do {
+            let input = try AVCaptureDeviceInput(device: camera)
+            guard session.canAddInput(input) else {
+                throw CameraError.cannotAddInput
+            }
+            session.addInput(input)
+            self.deviceInput = input
+            self.rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: input.device, previewLayer: nil)
+        } catch {
+            throw CameraError.creationFailed
+        }
+        
+        // Add photo output if supported
+        guard session.canAddOutput(photoOutput) else {
+            throw CameraError.cannotAddOutput
+        }
+        session.addOutput(photoOutput)
+        
+        // Add video data output for preview frames
+        guard session.canAddOutput(videoOutput) else {
+            throw CameraError.cannotAddOutput
+        }
+        videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_preview_video_output"))
+        session.addOutput(videoOutput)
         
         isCaptureSessionConfigured = true
-
     }
     
     /// Starts the capture session if authorized and configured.
@@ -224,6 +235,9 @@ actor Camera: NSObject, ICamera {
     deinit {
         photoContinuation?.finish()
         previewContinuation?.finish()
+        Task { @MainActor in
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        }
     }
     
     /// Initiates a photo capture asynchronously with appropriate settings.
@@ -281,7 +295,10 @@ actor Camera: NSObject, ICamera {
     /// - Returns: Boolean indicating flash availability.
     @MainActor
     private func isFlashAvailable() async -> Bool {
-        await self.deviceInput.device.isFlashAvailable
+        guard let deviceInput else {
+            return false
+        }
+        return await deviceInput.device.isFlashAvailable
     }
     
 }
@@ -292,8 +309,8 @@ actor Camera: NSObject, ICamera {
 extension Camera: AVCapturePhotoCaptureDelegate {
     
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        guard error == nil else {
-            print("Error capturing photo: \(error!.localizedDescription)")
+        if let error {
+            print("Error capturing photo: \(error.localizedDescription)")
             return
         }
         Task {
@@ -310,7 +327,7 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
     
     nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         
-        guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
+        guard let pixelBuffer = sampleBuffer.imageBuffer, let rotationCoordinator else { return }
         let image = CIImage(cvPixelBuffer: pixelBuffer)
         // Update connection video orientation based on current device orientation if supported.
         Task { @MainActor in
