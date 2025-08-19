@@ -1,6 +1,6 @@
 //
 //  File.swift
-//  camera
+//  Camera
 //
 //  Created by Kevin LAUNAY on 12/08/2025.
 //  
@@ -15,7 +15,7 @@ import UIKit
 protocol ICamera: Actor {
     var previewStream: AsyncStream<CIImage> { get }
     var photoStream: AsyncStream<AVCapturePhoto>  { get }
-    func configure(preset: AVCaptureSession.Preset)
+    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position)
     func start() async
     func stop() async
     func takePhoto() async
@@ -118,20 +118,33 @@ actor Camera: NSObject, ICamera {
             return false
         }
     }
-    
-    
+        
     //MARK: - ICamera Implementation
-    
     /// Configures the capture session with input device and outputs.
-    func configure(preset: AVCaptureSession.Preset = .photo) {
+    func configure(preset: AVCaptureSession.Preset = .photo, position: AVCaptureDevice.Position = .back) {
+    
+        if session.isRunning {
+                session.stopRunning()
+                session.removeInput(deviceInput )
+        }
+        
         self.session.beginConfiguration()
         self.session.sessionPreset = preset
         
         // Setup video input device.
-        guard let camera = AVCaptureDevice.default(for: .video),
+        let cameras = [
+            AVCaptureDevice.DeviceType.builtInDualCamera,
+            AVCaptureDevice.DeviceType.builtInTripleCamera,
+            AVCaptureDevice.DeviceType.builtInDualWideCamera,
+            AVCaptureDevice.DeviceType.builtInTrueDepthCamera,
+            AVCaptureDevice.DeviceType.builtInUltraWideCamera,
+            AVCaptureDevice.DeviceType.builtInWideAngleCamera,
+        ]
+
+        let discoverySession = AVCaptureDevice.DiscoverySession.init(deviceTypes: cameras, mediaType: AVMediaType.video, position: position)
+        guard let camera = discoverySession.devices.count > 0 ? AVCaptureDevice.default(discoverySession.devices[0].deviceType, for: .video, position: position) : AVCaptureDevice.default(for: .video),
               let input = try? AVCaptureDeviceInput(device: camera),
               self.session.canAddInput(input) else {
-            print("Failed to set up camera input")
             self.session.commitConfiguration()
             return
         }
@@ -169,7 +182,11 @@ actor Camera: NSObject, ICamera {
             print("Camera access was not authorized.")
             return
         }
-        guard isCaptureSessionConfigured else { return }
+        guard isCaptureSessionConfigured
+            , !self.session.isRunning
+        else {
+            return
+        }
         isPreviewPaused = false
         queue.async {
             self.session.startRunning()
@@ -291,4 +308,55 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
             await emitPreview(image)
         }
     }
+}
+
+enum AVCaptureSessionPreset: CaseIterable {
+    case photo
+    case low
+    case medium
+    case high
+    case hd1280x720
+    case hd1920x1080
+    case hd4K3840x2160
+    case cif352x288
+    case iFrame1280x720
+    case iFrame960x540
+    case inputPriority
+    case vga640x480
+
+    var name: String {
+        return switch self {
+        case .photo : "photo"
+        case .low : "low"
+        case .medium : "medium"
+        case .high : "high"
+        case .hd1280x720 : "hd1280x720"
+        case .hd1920x1080 : "hd1920x1080"
+        case .hd4K3840x2160 : "hd4K3840x2160"
+        case .cif352x288 : "cif352x288"
+        case .iFrame1280x720 : "iFrame1280x720"
+        case .iFrame960x540 : "iFrame960x540"
+        case .inputPriority : "inputPriority"
+        case .vga640x480 : "vga640x480"
+        }
+    }
+    
+    var preset: AVCaptureSession.Preset {
+        return switch self {
+        case .photo : AVCaptureSession.Preset.photo
+        case .low : AVCaptureSession.Preset.low
+        case .medium : AVCaptureSession.Preset.medium
+        case .high : AVCaptureSession.Preset.high
+        case .hd1280x720 : AVCaptureSession.Preset.hd1280x720
+        case .hd1920x1080 : AVCaptureSession.Preset.hd1920x1080
+        case .hd4K3840x2160 : AVCaptureSession.Preset.hd4K3840x2160
+        case .cif352x288 : AVCaptureSession.Preset.cif352x288
+        case .iFrame1280x720 : AVCaptureSession.Preset.iFrame1280x720
+        case .iFrame960x540 : AVCaptureSession.Preset.iFrame960x540
+        case .inputPriority : AVCaptureSession.Preset.inputPriority
+        case .vga640x480 : AVCaptureSession.Preset.vga640x480
+
+        }
+    }
+    
 }

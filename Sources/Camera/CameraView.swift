@@ -13,7 +13,7 @@ public struct CameraView: View {
     public typealias OnComplete = (AVCapturePhoto?) -> ()
     @StateObject var model = CameraModel()
     public let completion : OnComplete?
-
+    
     public init(completion: OnComplete?) {
         self.completion = completion
     }
@@ -33,8 +33,8 @@ public struct CameraView: View {
         .background(Color.black)
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 16) {
-                Spacer()
                 if model.isPhotoCaptured {
+                    Spacer()
                     Button {
                         model.handleRejectPhoto()
                     } label: {
@@ -47,11 +47,25 @@ public struct CameraView: View {
                     }
                         
                 } else {
+                    Picker("Select preset", selection: $model.preset) {
+                        ForEach(0 ..< model.presets.count) { index in
+                            Text("\(model.presets[index].name)")
+                                .foregroundStyle(Color.white)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    
                     Button {
                         model.handleButtonExit()
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
+                    }
+                    Spacer()
+                    Button {
+                        model.handleSwitchPosition()
+                    } label: {
+                        Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90.camera")
                     }
                     Spacer()
                     Button {
@@ -66,21 +80,20 @@ public struct CameraView: View {
             .symbolRenderingMode(.multicolor)
             .padding(.horizontal, 16)
             .padding(.top, 16)
+            .frame(height: 120)
             .frame(maxWidth: .infinity)
             .background {
-                Color.black.opacity(0.25)
+                Color.black.opacity(0.5)
                     .ignoresSafeArea(edges: [.bottom, .trailing, .leading])
             }
         }
         .task {
-            await model.configure()
-            await model.startStreaming()
+            await model.start()
         }
         .onChange(of: model.capture) {
             completion?(model.capture)
             dismiss()
         }
-        
     }
 }
 
@@ -88,16 +101,15 @@ struct ImagePreview: View {
     var image: Image?
     
     var body: some View {
-        GeometryReader { geometry in
             if let image = image {
                 image
                     .resizable()
-                    .scaledToFill()
-                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .scaledToFit()
+                    .fitToParent()
             }
-        }
     }
 }
+
 
 #Preview {
     // Example of using CameraView with a custom model
@@ -107,7 +119,7 @@ struct ImagePreview: View {
 }
 
 #Preview(traits: .landscapeLeft) {
-    CameraView {_ in 
-        
-    }
+    let ciImage = CIImage(color: .red).cropped(to: .init(x: 0, y: 0, width: 1, height: 1))
+    let mock = MockCamera(previewImages: [ciImage], photoImages: [])
+    return CameraView(model: CameraModel(camera: mock))
 }

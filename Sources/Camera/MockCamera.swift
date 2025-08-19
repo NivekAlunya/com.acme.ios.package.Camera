@@ -32,7 +32,7 @@ actor MockCamera: ICamera {
         }
         continuation.finish()
     }
-    func configure(preset: AVCaptureSession.Preset) {}
+    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position) {}
     func start() async {}
     func stop() async {}
     func takePhoto() async {}
