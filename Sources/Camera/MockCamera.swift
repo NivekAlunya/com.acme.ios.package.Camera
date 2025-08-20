@@ -9,6 +9,17 @@ import CoreImage
 
 // Mock implementation of ICamera for testing CameraModel
 actor MockCamera: ICamera {
+    func resume() async {
+        
+    }
+    
+    var listCaptureDevice: [AVCaptureDevice] = []
+    
+    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position, device: AVCaptureDevice?) throws {
+    }
+    
+    func changeCamera(position: AVCaptureDevice.Position, device: AVCaptureDevice?) throws {
+    }
     
     
     let previewImages: [CIImage]
@@ -32,7 +43,9 @@ actor MockCamera: ICamera {
         }
         continuation.finish()
     }
-    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position, deviceType: AVCaptureDevice.DeviceType?) {}
+    func changePreset(preset: AVCaptureSession.Preset) {
+        
+    }
     func start() async {}
     func stop() async {}
     func takePhoto() async {}

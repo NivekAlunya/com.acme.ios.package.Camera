@@ -25,12 +25,14 @@ public class CameraModel: ObservableObject {
     @Published var position : AVCaptureDevice.Position = .back
     @Published var preset = 0 {
         didSet {
-            print("action")
+            print("action \(presets[preset].preset))")
             handleMenuPreset(presets[preset].preset)
         }
     }
     
-    var presets = AVCaptureSessionPreset.allCases
+    var presets = CaptureSessionPreset.allCases
+    @Published var devices = [AVCaptureDevice]()
+    @Published var device = [AVCaptureDevice]()
 
     /// Photo camera returned by the component
     private var photo: AVCapturePhoto?
@@ -47,9 +49,10 @@ public class CameraModel: ObservableObject {
     
     func start() async {
         do {
-            try await camera.configure(preset: presets[preset].preset, position: position, deviceType: nil)
-
+            try await camera.configure(preset: presets[preset].preset, position: position, device: nil)
             isPhotoCaptured = false
+            device = await camera.listCaptureDevice
+            
             await camera.start()
         } catch {
             print("Failed to start camera: \(error)")
@@ -87,14 +90,18 @@ public class CameraModel: ObservableObject {
     
     private func handleMenuPreset(_ preset: AVCaptureSession.Preset) {
         Task {
-            await start()
+            await camera.changePreset(preset: preset)
         }
     }
 
     func handleSwitchPosition() {
         Task {
             position = position == .back ? AVCaptureDevice.Position.front : AVCaptureDevice.Position.back
-            await start()
+            do {
+                try await camera.changeCamera(position: position, device: nil)
+            } catch {
+                print("Failed to start camera: \(error)")
+            }
         }
     }
 
@@ -106,7 +113,8 @@ public class CameraModel: ObservableObject {
     func handleRejectPhoto() {
         photo = nil
         Task {
-            await start()
+            isPhotoCaptured = false
+            await camera.resume()
         }
     }
     

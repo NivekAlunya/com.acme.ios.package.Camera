@@ -22,14 +22,19 @@ enum CameraError: Error {
 protocol ICamera: Actor {
     var previewStream: AsyncStream<CIImage> { get }
     var photoStream: AsyncStream<AVCapturePhoto>  { get }
-    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position, deviceType: AVCaptureDevice.DeviceType?) throws
+    var listCaptureDevice: [AVCaptureDevice]  { get }
+    func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position, device: AVCaptureDevice?) throws
+    func changePreset(preset: AVCaptureSession.Preset)
+    func changeCamera(position: AVCaptureDevice.Position, device: AVCaptureDevice?) async throws
     func start() async
+    func resume() async
     func stop() async
     func takePhoto() async
 }
 
 /// Camera actor managing AVCaptureSession, providing async streams for preview and photos, and controlling capture lifecycle.
 actor Camera: NSObject, ICamera {
+    
     
     /// AVCapture session managing capture inputs and outputs.
     private let session = AVCaptureSession()
@@ -49,9 +54,12 @@ actor Camera: NSObject, ICamera {
     
     /// Flag indicating if preview frame emission is currently paused.
     private var isPreviewPaused = false
-        
+    var listCaptureDevice = [AVCaptureDevice]()
+    var position: AVCaptureDevice.Position = .back
+    
     /// Flag indicating if the capture session has been configured.
     private var isCaptureSessionConfigured = false
+    private var isCaptureSessionOutputConfigured = false
 
     /// Continuation used to yield preview frames into the async stream.
     private var previewContinuation: AsyncStream<CIImage>.Continuation?
@@ -102,12 +110,6 @@ actor Camera: NSObject, ICamera {
         }
     }
     
-    deinit {
-        Task { @MainActor in
-            UIDevice.current.endGeneratingDeviceOrientationNotifications()
-        }
-    }
-
     /// Checks and requests camera authorization asynchronously.
     private func checkAuthorization() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -139,32 +141,69 @@ actor Camera: NSObject, ICamera {
     ///   - preset: The session preset defining capture quality.
     ///   - position: The camera position (front or back).
     ///   - deviceType: Optional specific device type to select.
-    func configure(preset: AVCaptureSession.Preset = .photo, position: AVCaptureDevice.Position = .back, deviceType: AVCaptureDevice.DeviceType?) throws {
-
-        if session.isRunning {
-            session.stopRunning()
-            if let deviceInput {
-                session.removeInput(deviceInput)
-            }
-        }
-        
+    func configure(preset: AVCaptureSession.Preset = .photo, position: AVCaptureDevice.Position = .back, device: AVCaptureDevice?) throws {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
-        
         session.sessionPreset = preset
+        try setupCaptureDevice(position: position, device: device)
+        try setupCaptureDeviceOutput()
+        isCaptureSessionConfigured = true
+    }
+    
+    func changePreset(preset: AVCaptureSession.Preset = .photo) {
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+        session.sessionPreset = preset
+    }
+ 
+    private func removeDevice() {
+        if session.isRunning {
+            session.stopRunning()
+        }
+        if let deviceInput {
+            session.removeInput(deviceInput)
+        }
+    }
 
-        // Setup video input device
-        let cameras = [
-            .builtInDualCamera, .builtInTripleCamera, .builtInDualWideCamera,
-            .builtInTrueDepthCamera, .builtInUltraWideCamera, .builtInWideAngleCamera
-        ]
+    
+    func changeCamera(position: AVCaptureDevice.Position, device: AVCaptureDevice?) async throws {
+        removeDevice()
+        try configure(preset: session.sessionPreset, position: position, device: device)
+        await start()
+    }
+    
+    private func setupCaptureDeviceOutput() throws {
+        guard !isCaptureSessionOutputConfigured else {
+            return
+        }
+        
+        // Add photo output if supported
+        guard session.canAddOutput(photoOutput) else {
+            throw CameraError.cannotAddOutput
+        }
+        session.addOutput(photoOutput)
+        
+        // Add video data output for preview frames
+        guard session.canAddOutput(videoOutput) else {
+            throw CameraError.cannotAddOutput
+        }
+        videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_preview_video_output"))
+        session.addOutput(videoOutput)
+        
+        isCaptureSessionOutputConfigured = true
+    }
+    
+    private func setupCaptureDevice(position: AVCaptureDevice.Position, device: AVCaptureDevice?) throws {
+
+        let cameras = CaptureDeviceType.allCases.map { $0.deviceType }
         
         let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: cameras, mediaType: .video, position: position)
 
         let discoveredDevice: AVCaptureDevice?
-        if let deviceType {
-            discoveredDevice = discoverySession.devices.first { $0.deviceType == deviceType }
+        if let device {
+            discoveredDevice = device
         } else {
+            listCaptureDevice = discoverySession.devices
             discoveredDevice = discoverySession.devices.first
         }
         
@@ -183,23 +222,7 @@ actor Camera: NSObject, ICamera {
         } catch {
             throw CameraError.creationFailed
         }
-        
-        // Add photo output if supported
-        guard session.canAddOutput(photoOutput) else {
-            throw CameraError.cannotAddOutput
-        }
-        session.addOutput(photoOutput)
-        
-        // Add video data output for preview frames
-        guard session.canAddOutput(videoOutput) else {
-            throw CameraError.cannotAddOutput
-        }
-        videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_preview_video_output"))
-        session.addOutput(videoOutput)
-        
-        isCaptureSessionConfigured = true
     }
-    
     /// Starts the capture session if authorized and configured.
     /// Ensures the session is not already running before starting.
     func start() async {
@@ -208,17 +231,26 @@ actor Camera: NSObject, ICamera {
             print("Camera access was not authorized.")
             return
         }
+        isPreviewPaused = false
         guard isCaptureSessionConfigured
             , !self.session.isRunning
         else {
             return
         }
+        
+        queue.async {
+            self.session.startRunning()
+        }
+    }
+
+    func resume() async {
+        guard isCaptureSessionConfigured else { return }
         isPreviewPaused = false
         queue.async {
             self.session.startRunning()
         }
-        
     }
+
     
     /// Stops the capture session safely and pauses preview emission.
     func stop() async {
@@ -295,10 +327,7 @@ actor Camera: NSObject, ICamera {
     /// - Returns: Boolean indicating flash availability.
     @MainActor
     private func isFlashAvailable() async -> Bool {
-        guard let deviceInput else {
-            return false
-        }
-        return await deviceInput.device.isFlashAvailable
+        return await deviceInput?.device.isFlashAvailable ?? false
     }
     
 }
@@ -327,10 +356,14 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
     
     nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         
-        guard let pixelBuffer = sampleBuffer.imageBuffer, let rotationCoordinator else { return }
+        guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
+
         let image = CIImage(cvPixelBuffer: pixelBuffer)
         // Update connection video orientation based on current device orientation if supported.
-        Task { @MainActor in
+        Task {
+            guard let rotationCoordinator = await rotationCoordinator else {
+                return
+            }
             connection.videoRotationAngle = await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
             
             // Emit the preview CIImage frame to the preview stream.
@@ -338,55 +371,3 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
         }
     }
 }
-
-enum AVCaptureSessionPreset: CaseIterable {
-    case photo
-    case low
-    case medium
-    case high
-    case hd1280x720
-    case hd1920x1080
-    case hd4K3840x2160
-    case cif352x288
-    case iFrame1280x720
-    case iFrame960x540
-    case inputPriority
-    case vga640x480
-
-    var name: String {
-        return switch self {
-        case .photo : "photo"
-        case .low : "low"
-        case .medium : "medium"
-        case .high : "high"
-        case .hd1280x720 : "hd1280x720"
-        case .hd1920x1080 : "hd1920x1080"
-        case .hd4K3840x2160 : "hd4K3840x2160"
-        case .cif352x288 : "cif352x288"
-        case .iFrame1280x720 : "iFrame1280x720"
-        case .iFrame960x540 : "iFrame960x540"
-        case .inputPriority : "inputPriority"
-        case .vga640x480 : "vga640x480"
-        }
-    }
-    
-    var preset: AVCaptureSession.Preset {
-        return switch self {
-        case .photo : AVCaptureSession.Preset.photo
-        case .low : AVCaptureSession.Preset.low
-        case .medium : AVCaptureSession.Preset.medium
-        case .high : AVCaptureSession.Preset.high
-        case .hd1280x720 : AVCaptureSession.Preset.hd1280x720
-        case .hd1920x1080 : AVCaptureSession.Preset.hd1920x1080
-        case .hd4K3840x2160 : AVCaptureSession.Preset.hd4K3840x2160
-        case .cif352x288 : AVCaptureSession.Preset.cif352x288
-        case .iFrame1280x720 : AVCaptureSession.Preset.iFrame1280x720
-        case .iFrame960x540 : AVCaptureSession.Preset.iFrame960x540
-        case .inputPriority : AVCaptureSession.Preset.inputPriority
-        case .vga640x480 : AVCaptureSession.Preset.vga640x480
-
-        }
-    }
-    
-}
-

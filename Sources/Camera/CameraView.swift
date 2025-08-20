@@ -22,7 +22,6 @@ public struct CameraView: View {
         _model = StateObject(wrappedValue: model)
         completion = nil
     }
-
     
     public var body: some View {
         ZStack {
@@ -56,7 +55,7 @@ public struct CameraView: View {
                                 .foregroundStyle(Color.white)
                         }
                     }
-                    .pickerStyle(.menu)
+                    .pickerStyle(.wheel)
                     
                     Button {
                         model.handleButtonExit()
