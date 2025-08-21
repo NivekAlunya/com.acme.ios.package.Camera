@@ -9,6 +9,12 @@ import CoreImage
 
 // Mock implementation of ICamera for testing CameraModel
 actor MockCamera: ICamera {
+    var listSupportedFormat: [VideoCodecType] = []
+    
+    func takePhoto(format: VideoCodecType) async {
+        
+    }
+    
     func resume() async {
         
     }
@@ -48,7 +54,7 @@ actor MockCamera: ICamera {
     }
     func start() async {}
     func stop() async {}
-    func takePhoto() async {}
+
     init(previewImages: [CIImage], photoImages: [AVCapturePhoto]) {
         self.previewImages = previewImages
         self.photoImages = photoImages

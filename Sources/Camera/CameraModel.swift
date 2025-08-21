@@ -14,6 +14,11 @@ import SwiftUI
 /// - Usage: Call `configure()` on appear, then `startStreaming()`. Use `.preview` to display the current camera image.
 @MainActor
 public class CameraModel: ObservableObject {
+    
+    enum State {
+        case previewing, processing, validating
+    }
+    
     /// Camera implementation conforming to ICamera (default: Camera)
     private let camera : any ICamera
     /// Most recent camera preview frame as a SwiftUI Image
@@ -21,18 +26,15 @@ public class CameraModel: ObservableObject {
     /// Photo camera returned by the component
     @Published var capture: AVCapturePhoto?
     /// Indicates if a photo has been captured and is awaiting confirmation.
-    @Published var isPhotoCaptured = false
+    @Published var state = State.previewing
     @Published var position : AVCaptureDevice.Position = .back
-    @Published var preset = 0 {
-        didSet {
-            print("action \(presets[preset].preset))")
-            handleMenuPreset(presets[preset].preset)
-        }
-    }
+    @Published var presetSelected = 0
     
     var presets = CaptureSessionPreset.allCases
     @Published var devices = [AVCaptureDevice]()
-    @Published var device = [AVCaptureDevice]()
+    @Published var deviceSelected = 0
+    @Published var formats = [VideoCodecType]()
+    @Published var formatSelected = 0
 
     /// Photo camera returned by the component
     private var photo: AVCapturePhoto?
@@ -49,10 +51,11 @@ public class CameraModel: ObservableObject {
     
     func start() async {
         do {
-            try await camera.configure(preset: presets[preset].preset, position: position, device: nil)
-            isPhotoCaptured = false
-            device = await camera.listCaptureDevice
-            
+            try await camera.configure(preset: presets[presetSelected].preset, position: position, device: nil)
+            state = .previewing
+            devices = await camera.listCaptureDevice
+            deviceSelected = 0
+            formats = await camera.listSupportedFormat
             await camera.start()
         } catch {
             print("Failed to start camera: \(error)")
@@ -77,7 +80,8 @@ public class CameraModel: ObservableObject {
     /// Take a photo when called (bound to UI button press).
     func handleButtonPhoto() {
         Task {
-            await camera.takePhoto()
+            state = .processing
+            await camera.takePhoto(format: formats[formatSelected])
         }
     }
 
@@ -88,9 +92,10 @@ public class CameraModel: ObservableObject {
         }
     }
     
-    private func handleMenuPreset(_ preset: AVCaptureSession.Preset) {
+    func handleSelectIndexPreset(_ index: Int) {
         Task {
-            await camera.changePreset(preset: preset)
+            presetSelected = index
+            await camera.changePreset(preset: presets[presetSelected].preset)
         }
     }
 
@@ -99,9 +104,24 @@ public class CameraModel: ObservableObject {
             position = position == .back ? AVCaptureDevice.Position.front : AVCaptureDevice.Position.back
             do {
                 try await camera.changeCamera(position: position, device: nil)
+                devices = await camera.listCaptureDevice
+                deviceSelected = 0
             } catch {
-                print("Failed to start camera: \(error)")
+                print("Failed to switch camera: \(error)")
             }
+        }
+    }
+
+    func handleSelectIndexDevice(_ index: Int) {
+        Task {
+            deviceSelected = index
+            try await camera.changeCamera(position: position, device: devices[deviceSelected])
+        }
+    }
+
+    func handleSelectIndexFormat(_ index: Int) {
+        Task {
+            formatSelected = index
         }
     }
 
@@ -113,7 +133,7 @@ public class CameraModel: ObservableObject {
     func handleRejectPhoto() {
         photo = nil
         Task {
-            isPhotoCaptured = false
+            state = .previewing
             await camera.resume()
         }
     }
@@ -135,7 +155,7 @@ public class CameraModel: ObservableObject {
     /// Update preview with captured photo and stop the camera.
     func setPhoto(photo: AVCapturePhoto) async {
         self.photo = photo
-        self.isPhotoCaptured = true
+        state = .validating
         self.preview = Image(avCapturePhoto: photo)
         await camera.stop()
     }

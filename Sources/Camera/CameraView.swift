@@ -12,6 +12,7 @@ public struct CameraView: View {
     @Environment(\.dismiss) var dismiss
     public typealias OnComplete = (AVCapturePhoto?) -> ()
     @StateObject var model = CameraModel()
+    @State var isSettingShown = false
     public let completion : OnComplete?
     
     public init(completion: OnComplete?) {
@@ -23,6 +24,63 @@ public struct CameraView: View {
         completion = nil
     }
     
+    var buttonReject: some View {
+        Button {
+            withAnimation {
+                model.handleRejectPhoto()
+            }
+        } label: {
+            Image(systemName: "xmark.circle.fill")
+        }
+        .accessibilityLabel("Reject Photo")
+        .padding(.trailing, 16)
+    }
+    
+    var buttonAccept: some View {
+        Button {
+            withAnimation {
+                model.handleButtonSelectPhoto()
+            }
+        } label: {
+            Image(systemName: "checkmark.circle.fill")
+        }
+        .accessibilityLabel("Accept Photo")
+    }
+    
+    var buttonSettings: some View {
+        Button {
+            withAnimation {
+                isSettingShown.toggle()
+                
+            }
+        } label: {
+            Image(systemName: "gear.circle.fill")
+        }
+        .accessibilityLabel("Oprn settings")
+    }
+    var buttonSwitchPosition: some View {
+        Button {
+            withAnimation {
+                model.handleSwitchPosition()
+            }
+        } label: {
+            Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90.camera")
+        }
+        .accessibilityLabel("Switch Camera")
+    }
+    
+    var buttonTakePhoto: some View {
+        Button {
+            withAnimation {
+                model.handleButtonPhoto()
+            }
+        } label: {
+            Image(systemName: "circle.circle.fill")
+        }
+        .accessibilityLabel("Take Photo")
+    }
+    
+    
     public var body: some View {
         ZStack {
             ImagePreview(image: model.preview)
@@ -30,61 +88,53 @@ public struct CameraView: View {
         .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
+        .safeAreaInset(edge: .top) {
+            HStack(spacing: 16) {
+                Spacer()
+                Button {
+                    model.handleButtonExit()
+                    dismiss()
+                    completion?(nil)
+                } label: {
+                    Image(systemName: "xmark.circle")
+                }
+                .accessibilityLabel("Close Camera")
+            }
+            .font(.largeTitle)
+            .symbolRenderingMode(.multicolor)
+            .padding(.horizontal)
+            .padding(.top)
+            .frame(maxWidth: .infinity)
+            .background {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea(edges: [.top, .trailing, .leading])
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 16) {
-                if model.isPhotoCaptured {
+                switch model.state {
+                    case .previewing:
                     Spacer()
-                    Button {
-                        model.handleRejectPhoto()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                    }
-                    .accessibilityLabel("Reject Photo")
-                    .padding(.trailing, 16)
-                    Button {
-                        model.handleButtonSelectPhoto()
-                    } label: {
-                        Image(systemName: "checkmark.circle.fill")
-                    }
-                    .accessibilityLabel("Accept Photo")
-                        
-                } else {
-                    Picker("Select preset", selection: $model.preset) {
-                        ForEach(0 ..< model.presets.count) { index in
-                            Text("\(model.presets[index].name)")
-                                .foregroundStyle(Color.white)
-                        }
-                    }
-                    .pickerStyle(.wheel)
+                        buttonSettings
+                    Spacer()
+                        buttonSwitchPosition
+                    Spacer()
+                        buttonTakePhoto
+                    case .processing:
+                        Image(systemName: "arrow.clockwise")
+                        .foregroundStyle(Color.orange)
+                        .symbolEffect(.rotate)
+                    case .validating:
+                    Spacer()
+                        buttonReject
+                        buttonAccept
                     
-                    Button {
-                        model.handleButtonExit()
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                    }
-                    .accessibilityLabel("Close Camera")
-                    Spacer()
-                    Button {
-                        model.handleSwitchPosition()
-                    } label: {
-                        Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90.camera")
-                    }
-                    .accessibilityLabel("Switch Camera")
-                    Spacer()
-                    Button {
-                        model.handleButtonPhoto()
-                    } label: {
-                        Image(systemName: "camera.circle")
-                    }
-                    .accessibilityLabel("Take Photo")
-
                 }
             }
             .font(.largeTitle)
             .symbolRenderingMode(.multicolor)
             .padding(.horizontal)
-            .padding(.vertical, 20)
+            .padding(.top)
             .frame(maxWidth: .infinity)
             .background {
                 Color.black.opacity(0.5)
@@ -98,6 +148,100 @@ public struct CameraView: View {
             completion?(model.capture)
             dismiss()
         }
+        .sheet(isPresented: $isSettingShown) {
+            SettingsView(model: model)
+        }
+    }
+}
+
+struct SettingsView: View {
+    @StateObject var model: CameraModel
+    var body: some View {
+        TabView {
+            List {
+                Section(header: Text("Output Quality").font(.largeTitle).bold()) {
+                    ForEach(0 ..< model.presets.count) { index in
+                        Label {
+                            Text("\(model.presets[index].name)".uppercased())
+                        } icon: {
+                            if (index == model.presetSelected) {
+                                Image(systemName: "checkmark")
+                            } else {
+                                Color.clear
+                            }
+                        }
+                        .onTapGesture {
+                            withAnimation {
+                                model.handleSelectIndexPreset(index)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.inset)
+                .listRowSeparator(.hidden)
+                .refreshable {
+                    //await mailbox.fetch()
+                }
+                
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            .tabItem {
+                Image(systemName: "slider.horizontal.3")
+            }
+            List {
+                Section(header: Text("Devices").font(.largeTitle).bold()) {
+                    ForEach(0 ..< model.devices.count) { index in
+                        Label {
+                            Text("\(model.devices[index].localizedName)".uppercased())
+                        } icon: {
+                            if (index == model.deviceSelected) {
+                                Image(systemName: "checkmark")
+                            } else {
+                                Color.clear
+                            }
+                        }
+                        .onTapGesture {
+                            withAnimation {
+                                model.handleSelectIndexDevice(index)
+                            }
+                        }
+                    }
+                }
+            }
+            .background(Color.clear)
+            .scrollContentBackground(.hidden)
+            .tabItem {
+                Image(systemName: "camera.on.rectangle")
+            }
+            List {
+                Section(header: Text("Formats").font(.largeTitle).bold()) {
+                    ForEach(0 ..< model.formats.count) { index in
+                        Label {
+                            Text("\(model.formats[index])".uppercased())
+                        } icon: {
+                            if (index == model.formatSelected) {
+                                Image(systemName: "checkmark")
+                            } else {
+                                Color.clear
+                            }
+                        }
+                        .onTapGesture {
+                            withAnimation {
+                                model.handleSelectIndexFormat(index)
+                            }
+                        }
+                    }
+                }
+            }
+            .background(Color.clear)
+            .scrollContentBackground(.hidden)
+            .tabItem {
+                Image(systemName: "photo.badge.arrow.down")
+            }
+        }
+        .presentationDetents([ .medium, .large])
+        .presentationBackground(.clear)
     }
 }
 
@@ -105,12 +249,12 @@ struct ImagePreview: View {
     var image: Image?
     
     var body: some View {
-            if let image = image {
-                image
-                    .resizable()
-                    .scaledToFit()
-                    .fitToParent()
-            }
+        if let image = image {
+            image
+                .resizable()
+                .scaledToFit()
+                .fitToParent()
+        }
     }
 }
 

@@ -23,13 +23,14 @@ protocol ICamera: Actor {
     var previewStream: AsyncStream<CIImage> { get }
     var photoStream: AsyncStream<AVCapturePhoto>  { get }
     var listCaptureDevice: [AVCaptureDevice]  { get }
+    var listSupportedFormat: [VideoCodecType] { get }
     func configure(preset: AVCaptureSession.Preset, position: AVCaptureDevice.Position, device: AVCaptureDevice?) throws
     func changePreset(preset: AVCaptureSession.Preset)
     func changeCamera(position: AVCaptureDevice.Position, device: AVCaptureDevice?) async throws
     func start() async
     func resume() async
     func stop() async
-    func takePhoto() async
+    func takePhoto(format: VideoCodecType) async
 }
 
 /// Camera actor managing AVCaptureSession, providing async streams for preview and photos, and controlling capture lifecycle.
@@ -56,6 +57,7 @@ actor Camera: NSObject, ICamera {
     private var isPreviewPaused = false
     var listCaptureDevice = [AVCaptureDevice]()
     var position: AVCaptureDevice.Position = .back
+    var listSupportedFormat = [VideoCodecType]()
     
     /// Flag indicating if the capture session has been configured.
     private var isCaptureSessionConfigured = false
@@ -190,6 +192,10 @@ actor Camera: NSObject, ICamera {
         videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_preview_video_output"))
         session.addOutput(videoOutput)
         
+        listSupportedFormat = photoOutput.availablePhotoCodecTypes.compactMap{
+            VideoCodecType(avVideoCodecType: $0)
+        }
+        
         isCaptureSessionOutputConfigured = true
     }
     
@@ -203,7 +209,7 @@ actor Camera: NSObject, ICamera {
         if let device {
             discoveredDevice = device
         } else {
-            listCaptureDevice = discoverySession.devices
+            listCaptureDevice = discoverySession.devices.filter { $0.position == position }
             discoveredDevice = discoverySession.devices.first
         }
         
@@ -274,29 +280,31 @@ actor Camera: NSObject, ICamera {
     
     /// Initiates a photo capture asynchronously with appropriate settings.
     /// Sets photo codec, flash mode, and video orientation if supported.
-    func takePhoto() async {
+    func takePhoto(format: VideoCodecType = VideoCodecType.hevc) async {
         let videoOrientation = await getAVCaptureVideoOrientation()
-            var photoSettings = AVCapturePhotoSettings()
+        var photoSettings = AVCapturePhotoSettings()
+        // Prefer JPEG codec if available.
+        print(self.photoOutput.availablePhotoCodecTypes)
 
-            // Prefer JPEG codec if available.
-            print(self.photoOutput.availablePhotoCodecTypes)
-            if self.photoOutput.availablePhotoCodecTypes.contains(AVVideoCodecType.jpeg) {
-                photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+        if self.photoOutput.availablePhotoCodecTypes.contains(format.avVideoCodecType) {
+            photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: format.avVideoCodecType])
+        } else {
+            photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: self.photoOutput.availablePhotoCodecTypes.first])
+        }
+        
+        // Flash mode commented out; can be enabled if needed.
+        photoSettings.flashMode = await self.isFlashAvailable() ? .auto : .off
+        photoSettings.photoQualityPrioritization = .balanced
+        
+        if let photoOutputVideoConnection = self.photoOutput.connection(with: .video) {
+            // Set video orientation for the photo output connection if supported.
+            if photoOutputVideoConnection.isVideoRotationAngleSupported(90.0)
+                , let videoOrientation = videoOrientation {
+                print("videoOrientation \(videoOrientation)")
+                photoOutputVideoConnection.videoOrientation = videoOrientation
             }
-            
-            // Flash mode commented out; can be enabled if needed.
-            photoSettings.flashMode = await self.isFlashAvailable() ? .auto : .off
-            photoSettings.photoQualityPrioritization = .balanced
-            
-            if let photoOutputVideoConnection = self.photoOutput.connection(with: .video) {
-                // Set video orientation for the photo output connection if supported.
-                if photoOutputVideoConnection.isVideoRotationAngleSupported(90.0)
-                    , let videoOrientation = videoOrientation {
-                    print("videoOrientation \(videoOrientation)")
-                    photoOutputVideoConnection.videoOrientation = videoOrientation
-                }
-            }
-            self.photoOutput.capturePhoto(with: photoSettings, delegate: self)
+        }
+        self.photoOutput.capturePhoto(with: photoSettings, delegate: self)
     }
     
     /// Retrieves the current AVCaptureVideoOrientation based on device orientation asynchronously.
