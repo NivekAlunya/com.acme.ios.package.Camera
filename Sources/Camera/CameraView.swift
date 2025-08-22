@@ -83,20 +83,14 @@ public struct CameraView: View {
     var buttonSwitchFlash: some View {
         Button {
             withAnimation {
-                model.handleButtonPhoto()
+                model.handleSwitchFlash()
             }
         } label: {
             Image(systemName: "bolt")
         }
-        .accessibilityLabel("Set Flash")
-        
-        
-        //bolt.fill
-        
+        .accessibilityLabel("Set Flash")        
     }
 
-    
-    
     public var body: some View {
         ZStack {
             ImagePreview(image: model.preview)
