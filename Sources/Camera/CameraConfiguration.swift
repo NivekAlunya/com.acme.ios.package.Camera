@@ -1,14 +1,12 @@
-//
-//  CameraConfiguration.swift
-//  Camera
-//
-//  Created by Kevin LAUNAY on 22/08/2025.
-//
-
 import AVFoundation
 
+class CameraConfiguration {
+    let session = AVCaptureSession()
+    let videoOutput = AVCaptureVideoDataOutput()
+    var isCaptureSessionConfigured = false
+    var isCaptureSessionOutputConfigured = false
+    var isSetupNeeded: Bool = true
 
-struct CameraConfiguration {
     var deviceInput: AVCaptureDeviceInput? {
         didSet {
             buildRotationCoordinator()
@@ -39,9 +37,10 @@ struct CameraConfiguration {
         self.quality = quality
         self.preset = preset
         self.photoOutput = photoOutput
+        setup()
     }
     
-    private mutating func setup() {
+    private func setup() {
         listSupportedFormat = photoOutput.availablePhotoCodecTypes.compactMap{
             VideoCodecType(avVideoCodecType: $0)
         }
@@ -56,7 +55,7 @@ struct CameraConfiguration {
         listCaptureDevice.first ?? AVCaptureDevice.default(for: .video)
     }
     
-    func buildPhotoSettings() async -> AVCapturePhotoSettings  {
+    func buildPhotoSettings() -> AVCapturePhotoSettings  {
         var photoSettings = AVCapturePhotoSettings()
 
         if photoOutput.availablePhotoCodecTypes.contains(videoCodecType.avVideoCodecType) {
@@ -65,21 +64,19 @@ struct CameraConfiguration {
             photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: photoOutput.availablePhotoCodecTypes.first])
         }
         
-        // Flash mode commented out; can be enabled if needed.
         photoSettings.flashMode = flashMode.avFlashMode
         photoSettings.photoQualityPrioritization = quality
         return photoSettings
     }
     
-    private mutating func buildRotationCoordinator() {
+    private func buildRotationCoordinator() {
         guard let deviceInput else {
             return
         }
         self.rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: deviceInput.device, previewLayer: nil)
     }
     
-    mutating func switchPosition() {
+    func switchPosition() {
         position = position == .back ? .front : .back
     }
-    
 }

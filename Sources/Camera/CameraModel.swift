@@ -6,12 +6,11 @@
 //
 
 import Foundation
-import UIKit
 import SwiftUI
-@preconcurrency import AVFoundation
+import AVFoundation
 
 /// CameraModel manages camera configuration, preview streaming, and photo capture for SwiftUI views.
-/// - Usage: Call `configure()` on appear, then `startStreaming()`. Use `.preview` to display the current camera image.
+/// - Usage: Call `start()` on appear. Use `.preview` to display the current camera image.
 @MainActor
 public class CameraModel: ObservableObject {
     
@@ -20,7 +19,7 @@ public class CameraModel: ObservableObject {
     }
     
     /// Camera implementation conforming to ICamera (default: Camera)
-    private let camera : any CameraProtocol
+    let camera : any CameraProtocol
     /// Most recent camera preview frame as a SwiftUI Image
     @Published var preview: Image?
     /// Photo camera returned by the component
@@ -28,13 +27,7 @@ public class CameraModel: ObservableObject {
     /// Indicates if a photo has been captured and is awaiting confirmation.
     @Published var state = State.previewing
     @Published var position : AVCaptureDevice.Position = .back
-    @Published var presetSelected = 0
-    
-    var presets = CaptureSessionPreset.allCases
-    @Published var devices = [AVCaptureDevice]()
-    @Published var deviceSelected = 0
-    @Published var formats = [VideoCodecType]()
-    @Published var formatSelected = 0
+    @Published var error: Error?
 
     /// Photo camera returned by the component
     private var photo: AVCapturePhoto?
@@ -42,6 +35,7 @@ public class CameraModel: ObservableObject {
     private var previewTask: Task<Void, Never>?
     /// Task for asynchronously handling photo capture events
     private var photoTask: Task<Void, Never>?
+
     /// Initialize with any ICamera implementation (default: Camera)
     init(camera: any CameraProtocol = Camera()) {
         self.camera = camera
@@ -50,17 +44,13 @@ public class CameraModel: ObservableObject {
     func start() async {
         previewTask = Task { await handleCameraPreviews() }
         photoTask = Task { await handlePhotoCapture() }
-        self.position = await camera.config.position
+
         do {
-            //try await camera.configure(preset: presets[presetSelected].avPreset, device: nil)
-            state = .previewing
-            devices = await camera.config.listCaptureDevice
-            deviceSelected = 0
-            formats = await camera.config.listSupportedFormat
             try await camera.start()
+            self.position = await camera.config.position
+            state = .previewing
         } catch {
-            print("Failed to start camera: \(error)")
-            // Handle error appropriately, e.g., show an alert to the user
+            self.error = error
         }
     }
     
@@ -100,42 +90,14 @@ public class CameraModel: ObservableObject {
         }
     }
     
-    func handleSelectIndexPreset(_ index: Int) {
-        Task {
-            presetSelected = index
-            await camera.changePreset(preset: presets[presetSelected])
-        }
-    }
-
     func handleSwitchPosition() {
         Task {
             do {
-                
                 try await camera.swicthPosition()
-                devices = await camera.config.listCaptureDevice
-                deviceSelected = 0
-                position = await camera.config.position
+                self.position = await camera.config.position
             } catch {
-                print("Failed to switch camera: \(error)")
+                self.error = error
             }
-        }
-    }
-
-    func handleSelectIndexDevice(_ index: Int) {
-        Task {
-            deviceSelected = index
-            do {
-                try await camera.changeCamera(device: devices[deviceSelected])
-            } catch {
-                print("Failed to select device camera \(devices[deviceSelected].localizedName): \(error)")
-            }
-        }
-    }
-
-    func handleSelectIndexFormat(_ index: Int) {
-        Task {
-            formatSelected = index
-            await camera.changeCodec(formats[formatSelected])
         }
     }
 
@@ -158,7 +120,7 @@ public class CameraModel: ObservableObject {
     
     /// Update the preview property with new camera image data.
     func setPreview(image: CIImage?) async {
-        guard let cgImage = await image?.toCGImage() else {
+        guard let image = image, let cgImage = image.toCGImage() else {
             self.preview = nil
             return
         }
