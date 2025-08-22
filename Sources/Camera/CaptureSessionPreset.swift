@@ -38,7 +38,7 @@ public enum CaptureSessionPreset: CaseIterable {
         }
     }
     
-    var preset: AVCaptureSession.Preset {
+    var avPreset: AVCaptureSession.Preset {
         return switch self {
         case .photo : AVCaptureSession.Preset.photo
         case .low : AVCaptureSession.Preset.low
