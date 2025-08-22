@@ -20,7 +20,7 @@ public class CameraModel: ObservableObject {
     }
     
     /// Camera implementation conforming to ICamera (default: Camera)
-    private let camera : any ICamera
+    private let camera : any CameraProtocol
     /// Most recent camera preview frame as a SwiftUI Image
     @Published var preview: Image?
     /// Photo camera returned by the component
@@ -43,20 +43,21 @@ public class CameraModel: ObservableObject {
     /// Task for asynchronously handling photo capture events
     private var photoTask: Task<Void, Never>?
     /// Initialize with any ICamera implementation (default: Camera)
-    init(camera: any ICamera = Camera()) {
+    init(camera: any CameraProtocol = Camera()) {
         self.camera = camera
-        previewTask = Task { await handleCameraPreviews() }
-        photoTask = Task { await handlePhotoCapture() }
     }
     
     func start() async {
+        previewTask = Task { await handleCameraPreviews() }
+        photoTask = Task { await handlePhotoCapture() }
+        self.position = await camera.config.position
         do {
-            try await camera.configure(preset: presets[presetSelected].preset, position: position, device: nil)
+            //try await camera.configure(preset: presets[presetSelected].avPreset, device: nil)
             state = .previewing
-            devices = await camera.listCaptureDevice
+            devices = await camera.config.listCaptureDevice
             deviceSelected = 0
-            formats = await camera.listSupportedFormat
-            await camera.start()
+            formats = await camera.config.listSupportedFormat
+            try await camera.start()
         } catch {
             print("Failed to start camera: \(error)")
             // Handle error appropriately, e.g., show an alert to the user
@@ -65,14 +66,14 @@ public class CameraModel: ObservableObject {
     
     /// Asynchronously handle new preview frames from the camera.
     private func handleCameraPreviews() async {
-        for await image in await camera.previewStream {
+        for await image in await camera.stream.previewStream {
             await setPreview(image: image)
         }
     }
 
     /// Asynchronously handle new captured photos from the camera.
     private func handlePhotoCapture() async {
-        for await photo in await camera.photoStream {
+        for await photo in await camera.stream.photoStream {
             await setPhoto(photo: photo)
         }
     }
@@ -81,10 +82,17 @@ public class CameraModel: ObservableObject {
     func handleButtonPhoto() {
         Task {
             state = .processing
-            await camera.takePhoto(format: formats[formatSelected])
+            await camera.takePhoto()
         }
     }
 
+    func handleSwitchFlash() {
+        Task {
+            await camera.switchFlash(.auto)
+        }
+    }
+
+    
     func handleButtonExit() {
         Task {
             await stop()
@@ -95,17 +103,18 @@ public class CameraModel: ObservableObject {
     func handleSelectIndexPreset(_ index: Int) {
         Task {
             presetSelected = index
-            await camera.changePreset(preset: presets[presetSelected].preset)
+            await camera.changePreset(preset: presets[presetSelected])
         }
     }
 
     func handleSwitchPosition() {
         Task {
-            position = position == .back ? AVCaptureDevice.Position.front : AVCaptureDevice.Position.back
             do {
-                try await camera.changeCamera(position: position, device: nil)
-                devices = await camera.listCaptureDevice
+                
+                try await camera.swicthPosition()
+                devices = await camera.config.listCaptureDevice
                 deviceSelected = 0
+                position = await camera.config.position
             } catch {
                 print("Failed to switch camera: \(error)")
             }
@@ -115,17 +124,21 @@ public class CameraModel: ObservableObject {
     func handleSelectIndexDevice(_ index: Int) {
         Task {
             deviceSelected = index
-            try await camera.changeCamera(position: position, device: devices[deviceSelected])
+            do {
+                try await camera.changeCamera(device: devices[deviceSelected])
+            } catch {
+                print("Failed to select device camera \(devices[deviceSelected].localizedName): \(error)")
+            }
         }
     }
 
     func handleSelectIndexFormat(_ index: Int) {
         Task {
             formatSelected = index
+            await camera.changeCodec(formats[formatSelected])
         }
     }
 
-    
     func handleButtonSelectPhoto() {
         capture = photo
     }

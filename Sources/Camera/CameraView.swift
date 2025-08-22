@@ -79,6 +79,22 @@ public struct CameraView: View {
         }
         .accessibilityLabel("Take Photo")
     }
+
+    var buttonSwitchFlash: some View {
+        Button {
+            withAnimation {
+                model.handleButtonPhoto()
+            }
+        } label: {
+            Image(systemName: "bolt")
+        }
+        .accessibilityLabel("Set Flash")
+        
+        
+        //bolt.fill
+        
+    }
+
     
     
     public var body: some View {
