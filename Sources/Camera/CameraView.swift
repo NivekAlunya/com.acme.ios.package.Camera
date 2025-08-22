@@ -21,8 +21,7 @@ public struct CameraView: View {
     
     public init(completion: OnComplete?) {
         self.completion = completion
-        let camera = Camera()
-        _model = StateObject(wrappedValue: CameraModel(camera: camera))
+        _model = StateObject(wrappedValue: CameraModel())
     }
 
     init(model: CameraModel) {
@@ -38,8 +37,8 @@ public struct CameraView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
         .safeAreaInset(edge: .top) {
-            HeaderView(isSettingShown: $isSettingShown, onExit: {
-                model.handleButtonExit()
+            HeaderView(onExit: {
+                model.handleExit()
                 dismiss()
                 completion?(nil)
             })
@@ -75,7 +74,6 @@ public struct CameraView: View {
 }
 
 struct HeaderView: View {
-    @Binding var isSettingShown: Bool
     var onExit: () -> Void
     
     var body: some View {
@@ -111,13 +109,13 @@ struct FooterView: View {
                 Spacer()
                 SwitchPositionButton(action: model.handleSwitchPosition)
                 Spacer()
-                TakePhotoButton(action: model.handleButtonPhoto)
+                TakePhotoButton(action: model.handleTakePhoto)
             case .processing:
                 ProcessingView()
             case .validating:
                 Spacer()
                 RejectButton(action: model.handleRejectPhoto)
-                AcceptButton(action: model.handleButtonSelectPhoto)
+                AcceptButton(action: model.handleAcceptPhoto)
             }
         }
         .font(.largeTitle)
@@ -224,7 +222,7 @@ struct PresetSettingsView: View {
                         HStack {
                             Text(preset.name.uppercased())
                             Spacer()
-                            if preset == model.presetSelected {
+                            if preset == model.selectedPreset {
                                 Image(systemName: "checkmark")
                             }
                         }
@@ -253,7 +251,7 @@ struct DeviceSettingsView: View {
                         HStack {
                             Text(device.localizedName.uppercased())
                             Spacer()
-                            if device.uniqueID == model.deviceSelected?.uniqueID {
+                            if device.uniqueID == model.selectedDevice?.uniqueID {
                                 Image(systemName: "checkmark")
                             }
                         }
@@ -280,7 +278,7 @@ struct FormatSettingsView: View {
                         HStack {
                             Text(format.rawValue.uppercased())
                             Spacer()
-                            if format == model.formatSelected {
+                            if format == model.selectedFormat {
                                 Image(systemName: "checkmark")
                             }
                         }

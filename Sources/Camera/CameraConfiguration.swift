@@ -1,12 +1,14 @@
+//
+//  CameraConfiguration.swift
+//  Camera
+//
+//  Created by Kevin LAUNAY on 22/08/2025.
+//
+
 import AVFoundation
 
-class CameraConfiguration {
-    let session = AVCaptureSession()
-    let videoOutput = AVCaptureVideoDataOutput()
-    var isCaptureSessionConfigured = false
-    var isCaptureSessionOutputConfigured = false
-    var isSetupNeeded: Bool = true
 
+struct CameraConfiguration {
     var deviceInput: AVCaptureDeviceInput? {
         didSet {
             buildRotationCoordinator()
@@ -37,10 +39,9 @@ class CameraConfiguration {
         self.quality = quality
         self.preset = preset
         self.photoOutput = photoOutput
-        setup()
     }
     
-    private func setup() {
+    private mutating func setup() {
         listSupportedFormat = photoOutput.availablePhotoCodecTypes.compactMap{
             VideoCodecType(avVideoCodecType: $0)
         }
@@ -55,7 +56,7 @@ class CameraConfiguration {
         listCaptureDevice.first ?? AVCaptureDevice.default(for: .video)
     }
     
-    func buildPhotoSettings() -> AVCapturePhotoSettings  {
+    func buildPhotoSettings() async -> AVCapturePhotoSettings  {
         var photoSettings = AVCapturePhotoSettings()
 
         if photoOutput.availablePhotoCodecTypes.contains(videoCodecType.avVideoCodecType) {
@@ -64,19 +65,21 @@ class CameraConfiguration {
             photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: photoOutput.availablePhotoCodecTypes.first])
         }
         
+        // Flash mode commented out; can be enabled if needed.
         photoSettings.flashMode = flashMode.avFlashMode
         photoSettings.photoQualityPrioritization = quality
         return photoSettings
     }
     
-    private func buildRotationCoordinator() {
+    private mutating func buildRotationCoordinator() {
         guard let deviceInput else {
             return
         }
         self.rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: deviceInput.device, previewLayer: nil)
     }
     
-    func switchPosition() {
+    mutating func switchPosition() {
         position = position == .back ? .front : .back
     }
+
 }
