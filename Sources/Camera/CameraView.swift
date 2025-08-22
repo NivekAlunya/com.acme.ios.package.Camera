@@ -13,7 +13,6 @@ public struct CameraView: View {
     public typealias OnComplete = (AVCapturePhoto?) -> ()
 
     @StateObject var model: CameraModel
-    @StateObject var settingsModel: CameraSettingsModel
 
     @State var isSettingShown = false
     @State private var showErrorAlert = false
@@ -24,13 +23,11 @@ public struct CameraView: View {
         self.completion = completion
         let camera = Camera()
         _model = StateObject(wrappedValue: CameraModel(camera: camera))
-        _settingsModel = StateObject(wrappedValue: CameraSettingsModel(camera: camera))
     }
 
-    init(model: CameraModel, settingsModel: CameraSettingsModel) {
+    init(model: CameraModel) {
         self.completion = nil
         _model = StateObject(wrappedValue: model)
-        _settingsModel = StateObject(wrappedValue: settingsModel)
     }
     
     public var body: some View {
@@ -52,7 +49,6 @@ public struct CameraView: View {
         }
         .task {
             await model.start()
-            await settingsModel.loadSettings()
         }
         .onChange(of: model.capture) {
             completion?(model.capture)
@@ -73,7 +69,7 @@ public struct CameraView: View {
             )
         }
         .sheet(isPresented: $isSettingShown) {
-            SettingsView(model: settingsModel)
+            SettingsView(model: model)
         }
     }
 }
@@ -204,7 +200,7 @@ struct ProcessingView: View {
 }
 
 struct SettingsView: View {
-    @ObservedObject var model: CameraSettingsModel
+    @ObservedObject var model: CameraModel
 
     var body: some View {
         TabView {
@@ -218,7 +214,7 @@ struct SettingsView: View {
 }
 
 struct PresetSettingsView: View {
-    @ObservedObject var model: CameraSettingsModel
+    @ObservedObject var model: CameraModel
 
     var body: some View {
         List {
@@ -228,7 +224,7 @@ struct PresetSettingsView: View {
                         HStack {
                             Text(preset.name.uppercased())
                             Spacer()
-                            if preset == model.selectedPreset {
+                            if preset == model.presetSelected {
                                 Image(systemName: "checkmark")
                             }
                         }
@@ -247,7 +243,7 @@ struct PresetSettingsView: View {
 }
 
 struct DeviceSettingsView: View {
-    @ObservedObject var model: CameraSettingsModel
+    @ObservedObject var model: CameraModel
 
     var body: some View {
         List {
@@ -257,7 +253,7 @@ struct DeviceSettingsView: View {
                         HStack {
                             Text(device.localizedName.uppercased())
                             Spacer()
-                            if device.uniqueID == model.selectedDevice?.uniqueID {
+                            if device.uniqueID == model.deviceSelected?.uniqueID {
                                 Image(systemName: "checkmark")
                             }
                         }
@@ -274,7 +270,7 @@ struct DeviceSettingsView: View {
 }
 
 struct FormatSettingsView: View {
-    @ObservedObject var model: CameraSettingsModel
+    @ObservedObject var model: CameraModel
 
     var body: some View {
         List {
@@ -284,7 +280,7 @@ struct FormatSettingsView: View {
                         HStack {
                             Text(format.rawValue.uppercased())
                             Spacer()
-                            if format == model.selectedFormat {
+                            if format == model.formatSelected {
                                 Image(systemName: "checkmark")
                             }
                         }
@@ -316,13 +312,11 @@ struct ImagePreview: View {
 #Preview {
     let mockCamera = MockCamera()
     let cameraModel = CameraModel(camera: mockCamera)
-    let settingsModel = CameraSettingsModel(camera: mockCamera)
-    return CameraView(model: cameraModel, settingsModel: settingsModel)
+    return CameraView(model: cameraModel)
 }
 
 #Preview(traits: .landscapeLeft) {
     let mockCamera = MockCamera()
     let cameraModel = CameraModel(camera: mockCamera)
-    let settingsModel = CameraSettingsModel(camera: mockCamera)
-    return CameraView(model: cameraModel, settingsModel: settingsModel)
+    return CameraView(model: cameraModel)
 }

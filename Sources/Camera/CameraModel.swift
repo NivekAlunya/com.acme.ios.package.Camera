@@ -29,6 +29,14 @@ public class CameraModel: ObservableObject {
     @Published var position : AVCaptureDevice.Position = .back
     @Published var error: Error?
 
+    @Published var presetSelected: CaptureSessionPreset
+    @Published var deviceSelected: AVCaptureDevice?
+    @Published var formatSelected: VideoCodecType
+
+    @Published var presets: [CaptureSessionPreset] = []
+    @Published var devices: [AVCaptureDevice] = []
+    @Published var formats: [VideoCodecType] = []
+
     /// Photo camera returned by the component
     private var photo: AVCapturePhoto?
     /// Task for streaming preview frames asynchronously
@@ -39,6 +47,9 @@ public class CameraModel: ObservableObject {
     /// Initialize with any ICamera implementation (default: Camera)
     init(camera: any CameraProtocol = Camera()) {
         self.camera = camera
+        self.presetSelected = .photo
+        self.deviceSelected = nil
+        self.formatSelected = .hevc
     }
     
     func start() async {
@@ -49,11 +60,22 @@ public class CameraModel: ObservableObject {
             try await camera.start()
             self.position = await camera.config.position
             state = .previewing
+            await loadSettings()
         } catch {
             self.error = error
         }
     }
     
+    func loadSettings() async {
+        self.presets = await camera.config.preset.allCases
+        self.devices = await camera.config.listCaptureDevice
+        self.formats = await camera.config.listSupportedFormat
+
+        self.presetSelected = await camera.config.preset
+        self.deviceSelected = await camera.config.deviceInput?.device
+        self.formatSelected = await camera.config.videoCodecType
+    }
+
     /// Asynchronously handle new preview frames from the camera.
     private func handleCameraPreviews() async {
         for await image in await camera.stream.previewStream {
@@ -95,6 +117,7 @@ public class CameraModel: ObservableObject {
             do {
                 try await camera.swicthPosition()
                 self.position = await camera.config.position
+                await loadSettings()
             } catch {
                 self.error = error
             }
@@ -113,6 +136,31 @@ public class CameraModel: ObservableObject {
         }
     }
     
+    func selectPreset(_ preset: CaptureSessionPreset) {
+        Task {
+            presetSelected = preset
+            await camera.changePreset(preset: preset)
+        }
+    }
+
+    func selectDevice(_ device: AVCaptureDevice) {
+        Task {
+            deviceSelected = device
+            do {
+                try await camera.changeCamera(device: device)
+            } catch {
+                self.error = error
+            }
+        }
+    }
+
+    func selectFormat(_ format: VideoCodecType) {
+        Task {
+            formatSelected = format
+            await camera.changeCodec(format)
+        }
+    }
+
     deinit {
         previewTask?.cancel()
         photoTask?.cancel()
