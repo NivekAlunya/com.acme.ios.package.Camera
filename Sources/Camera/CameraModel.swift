@@ -14,70 +14,66 @@ import SwiftUI
 /// - Usage: Call `configure()` on appear, then `startStreaming()`. Use `.preview` to display the current camera image.
 @MainActor
 public class CameraModel: ObservableObject {
+    
+    enum State {
+        case previewing, processing, validating
+    }
+    
     /// Camera implementation conforming to ICamera (default: Camera)
-    private let camera : any ICamera
+    private let camera : any CameraProtocol
     /// Most recent camera preview frame as a SwiftUI Image
     @Published var preview: Image?
     /// Photo camera returned by the component
     @Published var capture: AVCapturePhoto?
-    /// Indicates if a photo was captured (not used in this version)
-    @Published var isPhotoCaptured = false
+    /// Indicates if a photo has been captured and is awaiting confirmation.
+    @Published var state = State.previewing
     @Published var position : AVCaptureDevice.Position = .back
-    @Published var preset = 0 {
-        didSet {
-            print("action")
-            handleMenuPreset(presets[preset].preset)
-        }
-    }
+    @Published var presetSelected = 0
     
-    var presets = AVCaptureSessionPreset.allCases
+    var presets = CaptureSessionPreset.allCases
+    @Published var devices = [AVCaptureDevice]()
+    @Published var deviceSelected = 0
+    @Published var formats = [VideoCodecType]()
+    @Published var formatSelected = 0
 
     /// Photo camera returned by the component
     private var photo: AVCapturePhoto?
-    /// Tracks configuration state to avoid redundant setup
-    private var isConfigured = false
     /// Task for streaming preview frames asynchronously
     private var previewTask: Task<Void, Never>?
     /// Task for asynchronously handling photo capture events
     private var photoTask: Task<Void, Never>?
     /// Initialize with any ICamera implementation (default: Camera)
-    init(camera: any ICamera = Camera()) {
+    init(camera: any CameraProtocol = Camera()) {
         self.camera = camera
-        previewTask = Task { await handleCameraPreviews() }
-        photoTask = Task { await handlePhotoCapture() }
-    }
-    
-    /// Prepare the camera for use. Should be called once on appear.
-    func configure(preset: AVCaptureSession.Preset = .photo, position : AVCaptureDevice.Position = .back) async {
-        guard !isConfigured else { return }
-        await camera.configure(preset: preset, position: position, deviceType: nil)
-        isConfigured = true
     }
     
     func start() async {
-        await configure(preset: presets[preset].preset, position: position)
-        guard isConfigured else {
-            return
+        previewTask = Task { await handleCameraPreviews() }
+        photoTask = Task { await handlePhotoCapture() }
+        self.position = await camera.config.position
+        do {
+            //try await camera.configure(preset: presets[presetSelected].avPreset, device: nil)
+            state = .previewing
+            devices = await camera.config.listCaptureDevice
+            deviceSelected = 0
+            formats = await camera.config.listSupportedFormat
+            try await camera.start()
+        } catch {
+            print("Failed to start camera: \(error)")
+            // Handle error appropriately, e.g., show an alert to the user
         }
-        await startStreaming()
-    }
-    /// Start camera session and begin streaming preview/photo events.
-    private func startStreaming() async {
-        isPhotoCaptured = false
-        await camera.start()
-
     }
     
     /// Asynchronously handle new preview frames from the camera.
     private func handleCameraPreviews() async {
-        for await image in await camera.previewStream {
+        for await image in await camera.stream.previewStream {
             await setPreview(image: image)
         }
     }
 
     /// Asynchronously handle new captured photos from the camera.
     private func handlePhotoCapture() async {
-        for await photo in await camera.photoStream {
+        for await photo in await camera.stream.photoStream {
             await setPhoto(photo: photo)
         }
     }
@@ -85,33 +81,64 @@ public class CameraModel: ObservableObject {
     /// Take a photo when called (bound to UI button press).
     func handleButtonPhoto() {
         Task {
+            state = .processing
             await camera.takePhoto()
         }
     }
 
+    func handleSwitchFlash() {
+        Task {
+            await camera.switchFlash(.auto)
+        }
+    }
+
+    
     func handleButtonExit() {
         Task {
-            stop()
+            await stop()
             capture = nil
         }
     }
     
-    private func handleMenuPreset(_ preset: AVCaptureSession.Preset) {
-        isConfigured = false
+    func handleSelectIndexPreset(_ index: Int) {
         Task {
-            await start()
+            presetSelected = index
+            await camera.changePreset(preset: presets[presetSelected])
         }
     }
 
     func handleSwitchPosition() {
-        isConfigured = false
         Task {
-            position = position == .back ? AVCaptureDevice.Position.front : AVCaptureDevice.Position.back
-            await start()
+            do {
+                
+                try await camera.swicthPosition()
+                devices = await camera.config.listCaptureDevice
+                deviceSelected = 0
+                position = await camera.config.position
+            } catch {
+                print("Failed to switch camera: \(error)")
+            }
         }
     }
 
-    
+    func handleSelectIndexDevice(_ index: Int) {
+        Task {
+            deviceSelected = index
+            do {
+                try await camera.changeCamera(device: devices[deviceSelected])
+            } catch {
+                print("Failed to select device camera \(devices[deviceSelected].localizedName): \(error)")
+            }
+        }
+    }
+
+    func handleSelectIndexFormat(_ index: Int) {
+        Task {
+            formatSelected = index
+            await camera.changeCodec(formats[formatSelected])
+        }
+    }
+
     func handleButtonSelectPhoto() {
         capture = photo
     }
@@ -119,7 +146,8 @@ public class CameraModel: ObservableObject {
     func handleRejectPhoto() {
         photo = nil
         Task {
-            await startStreaming()
+            state = .previewing
+            await camera.resume()
         }
     }
     
@@ -140,46 +168,17 @@ public class CameraModel: ObservableObject {
     /// Update preview with captured photo and stop the camera.
     func setPhoto(photo: AVCapturePhoto) async {
         self.photo = photo
-        self.isPhotoCaptured = true
+        state = .validating
         self.preview = Image(avCapturePhoto: photo)
         await camera.stop()
     }
     
     /// Cancel preview/photo tasks and stop the camera immediately.
     // Note: Cannot reliably await stop() in deinit; call stop() manually if needed before deallocation.
-    func stop() {
+    func stop() async {
         previewTask?.cancel()
         photoTask?.cancel()
-        Task { await camera.stop() }
+        await camera.stop()
     }
         
-}
-
-extension Image.Orientation {
-    init(_ cgOrientation: CGImagePropertyOrientation) {
-        switch cgOrientation {
-            case .up: self = .up
-            case .upMirrored: self = .upMirrored
-            case .down: self = .down
-            case .downMirrored: self = .downMirrored
-            case .left: self = .left
-            case .leftMirrored: self = .leftMirrored
-            case .right: self = .right
-            case .rightMirrored: self = .rightMirrored
-        }
-    }
-
-}
-
-extension Image {
-    public init?(avCapturePhoto: AVCapturePhoto) {
-        guard let cgImage = avCapturePhoto.cgImageRepresentation()
-            , let metadataOrientation = avCapturePhoto.metadata[String(kCGImagePropertyOrientation)]
-                , let cgImageOrientation = CGImagePropertyOrientation(rawValue: metadataOrientation as! UInt32)
-        else {
-            return nil
-        }
-        let imageOrientation = Image.Orientation(cgImageOrientation)
-        self = Image(decorative: cgImage, scale: 1, orientation: imageOrientation)
-    }
 }
