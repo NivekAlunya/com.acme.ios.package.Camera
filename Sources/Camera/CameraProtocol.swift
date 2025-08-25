@@ -14,7 +14,7 @@ protocol CameraProtocol: Actor {
     var stream : any CameraStreamProtocol { get }
     var config : CameraConfiguration { get }
     func changePreset(preset: CaptureSessionPreset)
-    func changeCamera(device: AVCaptureDevice?) async throws
+    func changeCamera(device: AVCaptureDevice) async throws
     func start() async throws
     func resume() async
     func stop() async
@@ -22,7 +22,7 @@ protocol CameraProtocol: Actor {
     func switchFlash(_ value: CameraFlashMode)
     func changeCodec(_ codec: VideoCodecType)
     func swicthPosition() async throws
-    func exit()
+    func end() async
 }
 
 actor MockCamera: CameraProtocol {
@@ -41,7 +41,7 @@ actor MockCamera: CameraProtocol {
     }
 
     func changePreset(preset: CaptureSessionPreset) {}
-    func changeCamera(device: AVCaptureDevice?) async throws {}
+    func changeCamera(device: AVCaptureDevice) async throws {}
 
     func start() async throws {
         started = true
@@ -64,7 +64,7 @@ actor MockCamera: CameraProtocol {
         photoIndex += 1
     }
     
-    func exit() {
+    func end() async {
     }
     
     func swicthPosition() async throws {

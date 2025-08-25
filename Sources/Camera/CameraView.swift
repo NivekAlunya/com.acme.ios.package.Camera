@@ -73,238 +73,243 @@ public struct CameraView: View {
     }
 }
 
-struct HeaderView: View {
-    var onExit: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Spacer()
-            Button(action: onExit) {
-                Image(systemName: "xmark.circle")
-            }
-            .accessibilityLabel("Close Camera")
-        }
-        .font(.largeTitle)
-        .symbolRenderingMode(.multicolor)
-        .padding(.horizontal)
-        .padding(.top)
-        .frame(maxWidth: .infinity)
-        .background {
-            Color.black.opacity(0.5)
-                .ignoresSafeArea(edges: [.top, .trailing, .leading])
-        }
-    }
-}
+extension CameraView {
 
-struct FooterView: View {
-    @ObservedObject var model: CameraModel
-    @Binding var isSettingShown: Bool
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            switch model.state {
-            case .previewing:
+    struct HeaderView: View {
+        var onExit: () -> Void
+        
+        var body: some View {
+            HStack(spacing: 16) {
                 Spacer()
-                SettingsButton(isSettingShown: $isSettingShown)
-                Spacer()
-                SwitchPositionButton(action: model.handleSwitchPosition)
-                Spacer()
-                TakePhotoButton(action: model.handleTakePhoto)
-            case .processing:
-                ProcessingView()
-            case .validating:
-                Spacer()
-                RejectButton(action: model.handleRejectPhoto)
-                AcceptButton(action: model.handleAcceptPhoto)
+                Button(action: onExit) {
+                    Image(systemName: "xmark.circle")
+                }
+                .accessibilityLabel("Close Camera")
+            }
+            .font(.largeTitle)
+            .symbolRenderingMode(.multicolor)
+            .padding(.horizontal)
+            .padding(.top)
+            .frame(maxWidth: .infinity)
+            .background {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea(edges: [.top, .trailing, .leading])
             }
         }
-        .font(.largeTitle)
-        .symbolRenderingMode(.multicolor)
-        .padding(.horizontal)
-        .padding(.top)
-        .frame(maxWidth: .infinity)
-        .background {
-            Color.black.opacity(0.5)
-                .ignoresSafeArea(edges: [.bottom, .trailing, .leading])
-        }
     }
-}
 
-struct SettingsButton: View {
-    @Binding var isSettingShown: Bool
-
-    var body: some View {
-        Button {
-            withAnimation {
-                isSettingShown.toggle()
+    struct FooterView: View {
+        @ObservedObject var model: CameraModel
+        @Binding var isSettingShown: Bool
+        
+        var body: some View {
+            HStack(spacing: 16) {
+                switch model.state {
+                case .previewing:
+                    Spacer()
+                    SettingsButton(isSettingShown: $isSettingShown)
+                    Spacer()
+                    SwitchPositionButton(action: model.handleSwitchPosition)
+                    Spacer()
+                    TakePhotoButton(action: model.handleTakePhoto)
+                case .processing:
+                    ProcessingView()
+                case .validating:
+                    Spacer()
+                    RejectButton(action: model.handleRejectPhoto)
+                    AcceptButton(action: model.handleAcceptPhoto)
+                }
             }
-        } label: {
-            Image(systemName: "gear.circle.fill")
+            .font(.largeTitle)
+            .symbolRenderingMode(.multicolor)
+            .padding(.horizontal)
+            .padding(.top)
+            .frame(maxWidth: .infinity)
+            .background {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea(edges: [.bottom, .trailing, .leading])
+            }
         }
-        .accessibilityLabel("Open settings")
     }
-}
 
-struct SwitchPositionButton: View {
-    var action: () -> Void
+    struct SettingsButton: View {
+        @Binding var isSettingShown: Bool
 
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "arrow.triangle.2.circlepath.camera")
+        var body: some View {
+            Button {
+                withAnimation {
+                    isSettingShown.toggle()
+                }
+            } label: {
+                Image(systemName: "gear.circle.fill")
+            }
+            .accessibilityLabel("Open settings")
         }
-        .accessibilityLabel("Switch Camera")
     }
-}
 
-struct TakePhotoButton: View {
-    var action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "circle.circle.fill")
+    struct SwitchPositionButton: View {
+        var action: () -> Void
+
+        var body: some View {
+            Button(action: action) {
+                Image(systemName: "arrow.triangle.2.circlepath.camera")
+            }
+            .accessibilityLabel("Switch Camera")
         }
-        .accessibilityLabel("Take Photo")
     }
-}
 
-struct RejectButton: View {
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "xmark.circle.fill")
+    struct TakePhotoButton: View {
+        var action: () -> Void
+        
+        var body: some View {
+            Button(action: action) {
+                Image(systemName: "circle.circle.fill")
+            }
+            .accessibilityLabel("Take Photo")
         }
-        .accessibilityLabel("Reject Photo")
     }
-}
 
-struct AcceptButton: View {
-    var action: () -> Void
+    struct RejectButton: View {
+        var action: () -> Void
 
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "checkmark.circle.fill")
+        var body: some View {
+            Button(action: action) {
+                Image(systemName: "xmark.circle.fill")
+            }
+            .accessibilityLabel("Reject Photo")
         }
-        .accessibilityLabel("Accept Photo")
     }
-}
 
-struct ProcessingView: View {
-    var body: some View {
-        Image(systemName: "arrow.clockwise")
-            .foregroundStyle(Color.orange)
-            .symbolEffect(.rotate)
-    }
-}
+    struct AcceptButton: View {
+        var action: () -> Void
 
-struct SettingsView: View {
-    @ObservedObject var model: CameraModel
-
-    var body: some View {
-        TabView {
-            PresetSettingsView(model: model)
-            DeviceSettingsView(model: model)
-            FormatSettingsView(model: model)
+        var body: some View {
+            Button(action: action) {
+                Image(systemName: "checkmark.circle.fill")
+            }
+            .accessibilityLabel("Accept Photo")
         }
-        .presentationDetents([.medium, .large])
-        .presentationBackground(.clear)
     }
-}
 
-struct PresetSettingsView: View {
-    @ObservedObject var model: CameraModel
+    struct ProcessingView: View {
+        var body: some View {
+            Image(systemName: "arrow.clockwise")
+                .foregroundStyle(Color.orange)
+                .symbolEffect(.rotate)
+        }
+    }
 
-    var body: some View {
-        List {
-            Section(header: Text("Output Quality").font(.largeTitle).bold()) {
-                ForEach(model.presets, id: \.self) { preset in
-                    Button(action: { model.selectPreset(preset) }) {
-                        HStack {
-                            Text(preset.name.uppercased())
-                            Spacer()
-                            if preset == model.selectedPreset {
-                                Image(systemName: "checkmark")
+    struct SettingsView: View {
+        @ObservedObject var model: CameraModel
+
+        var body: some View {
+            TabView {
+                PresetSettingsView(model: model)
+                DeviceSettingsView(model: model)
+                FormatSettingsView(model: model)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationBackground(.clear)
+        }
+    }
+
+    struct PresetSettingsView: View {
+        @ObservedObject var model: CameraModel
+
+        var body: some View {
+            List {
+                Section(header: Text("Output Quality").font(.largeTitle).bold()) {
+                    ForEach(model.presets, id: \.self) { preset in
+                        Button(action: { model.selectPreset(preset) }) {
+                            HStack {
+                                Text(preset.name.uppercased())
+                                Spacer()
+                                if preset == model.selectedPreset {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
+                .listStyle(.inset)
+                .listRowSeparator(.hidden)
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            .tabItem {
+                Image(systemName: "slider.horizontal.3")
+            }
+        }
+    }
+
+    struct DeviceSettingsView: View {
+        @ObservedObject var model: CameraModel
+
+        var body: some View {
+            List {
+                Section(header: Text("Devices").font(.largeTitle).bold()) {
+                    ForEach(model.devices, id: \.uniqueID) { device in
+                        Button(action: { model.selectDevice(device) }) {
+                            HStack {
+                                Text(device.localizedName.uppercased())
+                                Spacer()
+                                if device.uniqueID == model.selectedDevice?.uniqueID {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
                 }
             }
-            .listStyle(.inset)
-            .listRowSeparator(.hidden)
-        }
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .tabItem {
-            Image(systemName: "slider.horizontal.3")
+            .background(Color.clear)
+            .scrollContentBackground(.hidden)
+            .tabItem {
+                Image(systemName: "camera.on.rectangle")
+            }
         }
     }
-}
 
-struct DeviceSettingsView: View {
-    @ObservedObject var model: CameraModel
+    struct FormatSettingsView: View {
+        @ObservedObject var model: CameraModel
 
-    var body: some View {
-        List {
-            Section(header: Text("Devices").font(.largeTitle).bold()) {
-                ForEach(model.devices, id: \.uniqueID) { device in
-                    Button(action: { model.selectDevice(device) }) {
-                        HStack {
-                            Text(device.localizedName.uppercased())
-                            Spacer()
-                            if device.uniqueID == model.selectedDevice?.uniqueID {
-                                Image(systemName: "checkmark")
+        var body: some View {
+            List {
+                Section(header: Text("Formats").font(.largeTitle).bold()) {
+                    ForEach(model.formats, id: \.self) { format in
+                        Button(action: { model.selectFormat(format) }) {
+                            HStack {
+                                Text(format.name.uppercased())
+                                Spacer()
+                                if format == model.selectedFormat {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
                 }
             }
-        }
-        .background(Color.clear)
-        .scrollContentBackground(.hidden)
-        .tabItem {
-            Image(systemName: "camera.on.rectangle")
-        }
-    }
-}
-
-struct FormatSettingsView: View {
-    @ObservedObject var model: CameraModel
-
-    var body: some View {
-        List {
-            Section(header: Text("Formats").font(.largeTitle).bold()) {
-                ForEach(model.formats, id: \.self) { format in
-                    Button(action: { model.selectFormat(format) }) {
-                        HStack {
-                            Text(format.rawValue.uppercased())
-                            Spacer()
-                            if format == model.selectedFormat {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    }
-                }
+            .background(Color.clear)
+            .scrollContentBackground(.hidden)
+            .tabItem {
+                Image(systemName: "photo.badge.arrow.down")
             }
         }
-        .background(Color.clear)
-        .scrollContentBackground(.hidden)
-        .tabItem {
-            Image(systemName: "photo.badge.arrow.down")
+    }
+
+    struct ImagePreview: View {
+        var image: Image?
+        
+        var body: some View {
+            if let image = image {
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .fitToParent()
+            }
         }
     }
-}
 
-struct ImagePreview: View {
-    var image: Image?
     
-    var body: some View {
-        if let image = image {
-            image
-                .resizable()
-                .scaledToFit()
-                .fitToParent()
-        }
-    }
 }
 
 #Preview {

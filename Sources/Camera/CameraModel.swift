@@ -21,7 +21,7 @@ public class CameraModel: ObservableObject {
     }
     
     @Published var state = State.previewing
-    @Published var error: Error?
+    @Published var error: CameraError?
 
     // MARK: - Published Properties
 
@@ -62,14 +62,15 @@ public class CameraModel: ObservableObject {
     func start() async {
         previewTask = Task { await handleCameraPreviews() }
         photoTask = Task { await handlePhotoCapture() }
-
         do {
             try await camera.start()
-            await loadSettings()
             self.position = await camera.config.position
+            await loadSettings()
             state = .previewing
-        } catch {
+        } catch (let error as CameraError) {
             self.error = error
+        } catch {
+            
         }
     }
     
@@ -79,6 +80,11 @@ public class CameraModel: ObservableObject {
         await camera.stop()
     }
 
+    func end() async {
+        await stop()
+        await camera.end()
+    }
+    
     // MARK: - User Actions
 
     func handleTakePhoto() {
@@ -107,14 +113,20 @@ public class CameraModel: ObservableObject {
                 try await camera.swicthPosition()
                 await loadSettings()
                 self.position = await camera.config.position
-            } catch {
+            } catch (let error as CameraError) {
                 self.error = error
+            } catch {
+                
             }
         }
     }
 
     func handleAcceptPhoto() {
         capture = photo
+        Task {
+            await stop()
+            await camera.end()
+        }
     }
 
     func handleRejectPhoto() {
@@ -139,8 +151,10 @@ public class CameraModel: ObservableObject {
             selectedDevice = device
             do {
                 try await camera.changeCamera(device: device)
-            } catch {
+            } catch (let error as CameraError) {
                 self.error = error
+            } catch {
+                
             }
         }
     }
@@ -155,14 +169,15 @@ public class CameraModel: ObservableObject {
     // MARK: - Private Methods
 
     private func loadSettings() async {
-        devices = await camera.config.listCaptureDevice
-        formats = await camera.config.listSupportedFormat
 
         if let currentDevice = await camera.config.deviceInput?.device {
             selectedDevice = currentDevice
         } else if let firstDevice = devices.first {
             selectedDevice = firstDevice
         }
+
+        devices = await camera.config.listCaptureDevice
+        formats = await camera.config.listSupportedFormat
 
         selectedPreset = await camera.config.preset
         selectedFormat = await camera.config.videoCodecType
@@ -181,7 +196,7 @@ public class CameraModel: ObservableObject {
     }
 
     private func setPreview(image: CIImage?) async {
-        guard let image = image, let cgImage = image.toCGImage() else {
+        guard let image = image, let cgImage = await image.toCGImage() else {
             self.preview = nil
             return
         }
@@ -196,31 +211,31 @@ public class CameraModel: ObservableObject {
     }
 }
 
-extension CIImage {
-    func toCGImage() -> CGImage? {
-        let context = CIContext(options: nil)
-        return context.createCGImage(self, from: self.extent)
-    }
-}
-
-extension Image {
-    init?(avCapturePhoto: AVCapturePhoto) {
-        guard let cgImage = avCapturePhoto.cgImageRepresentation(),
-              let imageOrientation = cgImage.orientation else {
-            return nil
-        }
-        
-        let uiImage = UIImage(cgImage: cgImage, scale: 1.0, orientation: .right)
-        self.init(uiImage: uiImage)
-    }
-}
-
-extension CGImage {
-    var orientation: UIImage.Orientation? {
-        guard let properties = self.properties,
-              let orientationValue = properties[kCGImagePropertyOrientation as String] as? UInt32 else {
-            return nil
-        }
-        return UIImage.Orientation(rawValue: Int(orientationValue))
-    }
-}
+//extension CIImage {
+//    func toCGImage() -> CGImage? {
+//        let context = CIContext(options: nil)
+//        return context.createCGImage(self, from: self.extent)
+//    }
+//}
+//
+//extension Image {
+//    init?(avCapturePhoto: AVCapturePhoto) {
+//        guard let cgImage = avCapturePhoto.cgImageRepresentation(),
+//              let imageOrientation = cgImage.orientation else {
+//            return nil
+//        }
+//        
+//        let uiImage = UIImage(cgImage: cgImage, scale: 1.0, orientation: .right)
+//        self.init(uiImage: uiImage)
+//    }
+//}
+//
+//extension CGImage {
+//    var orientation: UIImage.Orientation? {
+//        guard let properties = self.properties,
+//              let orientationValue = properties[kCGImagePropertyOrientation as String] as? UInt32 else {
+//            return nil
+//        }
+//        return UIImage.Orientation(rawValue: Int(orientationValue))
+//    }
+//}
