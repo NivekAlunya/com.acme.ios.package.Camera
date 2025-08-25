@@ -8,7 +8,7 @@
 import AVFoundation
 
 
-struct CameraConfiguration {
+public struct CameraConfiguration {
     private(set)var deviceInput: AVCaptureDeviceInput?
     var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
     var flashMode: CameraFlashMode = .unavailbale
@@ -21,8 +21,8 @@ struct CameraConfiguration {
     private(set) var listSupportedFormat = [VideoCodecType]()
     private(set) var photoOutput: AVCapturePhotoOutput
     private let videoOutput = AVCaptureVideoDataOutput()
-    private var isCaptureSessionOutputConfigured = false
-
+    private var isOutputSetup = false
+    
     init(deviceInput: AVCaptureDeviceInput? = nil, flashMode: CameraFlashMode = .off, videoCodecType: VideoCodecType = .hevc, zoom: Float = 1.0, position: AVCaptureDevice.Position = .back, quality: AVCapturePhotoOutput.QualityPrioritization = .balanced, preset: CaptureSessionPreset = .photo, photoOutput: AVCapturePhotoOutput = AVCapturePhotoOutput()) {
         self.deviceInput = deviceInput
         self.flashMode = flashMode
@@ -81,10 +81,9 @@ struct CameraConfiguration {
     }
 
     mutating func setupCaptureDeviceOutput(forSession session: AVCaptureSession, delegate: AVCaptureVideoDataOutputSampleBufferDelegate) throws {
-        guard !isCaptureSessionOutputConfigured else {
+        guard !isOutputSetup else {
             return
         }
-        
         // Add photo output if supported
         guard session.canAddOutput(photoOutput) else {
             throw CameraError.cannotAddOutput
@@ -99,8 +98,7 @@ struct CameraConfiguration {
         session.addOutput(videoOutput)
 
         setupOutput()
-
-        isCaptureSessionOutputConfigured = true
+        isOutputSetup = true
     }
 
     mutating func setupCaptureDevice(device: AVCaptureDevice, forSession session: AVCaptureSession) throws {

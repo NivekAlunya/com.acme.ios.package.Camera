@@ -10,18 +10,17 @@ import AVFoundation
 
 public struct CameraView: View {
     @Environment(\.dismiss) var dismiss
-    public typealias OnComplete = (AVCapturePhoto?) -> ()
+    public typealias OnComplete = (AVCapturePhoto?, CameraConfiguration?) -> ()
 
     @StateObject var model: CameraModel
-
     @State var isSettingShown = false
     @State private var showErrorAlert = false
 
     public let completion : OnComplete?
     
-    public init(completion: OnComplete?) {
+    public init(camera: Camera = Camera(), completion: OnComplete?) {
         self.completion = completion
-        _model = StateObject(wrappedValue: CameraModel())
+        _model = StateObject(wrappedValue: CameraModel(camera: camera))
     }
 
     init(model: CameraModel) {
@@ -36,22 +35,21 @@ public struct CameraView: View {
         .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
-        .safeAreaInset(edge: .top) {
-            HeaderView(onExit: {
+        .safeAreaInset(edge: .bottom) {
+            FooterView(model: model, isSettingShown: $isSettingShown) {
                 model.handleExit()
                 dismiss()
-                completion?(nil)
-            })
-        }
-        .safeAreaInset(edge: .bottom) {
-            FooterView(model: model, isSettingShown: $isSettingShown)
+                completion?(nil, nil)
+            }
         }
         .task {
             await model.start()
         }
-        .onChange(of: model.capture) {
-            completion?(model.capture)
-            dismiss()
+        .onChange(of: model.state) {
+            if case .accepted(let accepted) = model.state {
+                completion?(accepted.photo, accepted.config)
+                dismiss()
+            }
         }
         .onChange(of: model.error) {
             if model.error != nil {
@@ -74,50 +72,35 @@ public struct CameraView: View {
 }
 
 extension CameraView {
-
-    struct HeaderView: View {
-        var onExit: () -> Void
-        
-        var body: some View {
-            HStack(spacing: 16) {
-                Spacer()
-                Button(action: onExit) {
-                    Image(systemName: "xmark.circle")
-                }
-                .accessibilityLabel("Close Camera")
-            }
-            .font(.largeTitle)
-            .symbolRenderingMode(.multicolor)
-            .padding(.horizontal)
-            .padding(.top)
-            .frame(maxWidth: .infinity)
-            .background {
-                Color.black.opacity(0.5)
-                    .ignoresSafeArea(edges: [.top, .trailing, .leading])
-            }
-        }
-    }
-
     struct FooterView: View {
         @ObservedObject var model: CameraModel
         @Binding var isSettingShown: Bool
-        
+        var onExit: () -> Void
+
         var body: some View {
             HStack(spacing: 16) {
                 switch model.state {
                 case .previewing:
-                    Spacer()
+                    Button(action: onExit) {
+                        Image(systemName: "xmark.circle")
+                    }
+                    .accessibilityLabel("Close Camera")
+                    .frame(maxWidth: .infinity)
                     SettingsButton(isSettingShown: $isSettingShown)
-                    Spacer()
+                        .frame(maxWidth: .infinity)
                     SwitchPositionButton(action: model.handleSwitchPosition)
-                    Spacer()
+                        .frame(maxWidth: .infinity)
                     TakePhotoButton(action: model.handleTakePhoto)
+                        .frame(maxWidth: .infinity)
                 case .processing:
                     ProcessingView()
                 case .validating:
-                    Spacer()
                     RejectButton(action: model.handleRejectPhoto)
+                        .frame(maxWidth: .infinity)
                     AcceptButton(action: model.handleAcceptPhoto)
+                        .frame(maxWidth: .infinity)
+                case .accepted((let photo, let config)):
+                    EmptyView()
                 }
             }
             .font(.largeTitle)
@@ -129,12 +112,12 @@ extension CameraView {
                 Color.black.opacity(0.5)
                     .ignoresSafeArea(edges: [.bottom, .trailing, .leading])
             }
+            
         }
     }
 
     struct SettingsButton: View {
         @Binding var isSettingShown: Bool
-
         var body: some View {
             Button {
                 withAnimation {
@@ -166,6 +149,7 @@ extension CameraView {
                 Image(systemName: "circle.circle.fill")
             }
             .accessibilityLabel("Take Photo")
+            .glassEffect(.regular)
         }
     }
 
@@ -205,8 +189,20 @@ extension CameraView {
         var body: some View {
             TabView {
                 PresetSettingsView(model: model)
+                    .tabItem {
+                        Image(systemName: "slider.horizontal.3")
+                    }
+
                 DeviceSettingsView(model: model)
+                    .tabItem {
+                        Image(systemName: "camera.on.rectangle")
+                    }
+                
                 FormatSettingsView(model: model)
+                    .tabItem {
+                        Image(systemName: "photo.badge.arrow.down")
+                    }
+
             }
             .presentationDetents([.medium, .large])
             .presentationBackground(.clear)
@@ -218,7 +214,7 @@ extension CameraView {
 
         var body: some View {
             List {
-                Section(header: Text("Output Quality").font(.largeTitle).bold()) {
+                Section(header: Text("Output Quality").bold()) {
                     ForEach(model.presets, id: \.self) { preset in
                         Button(action: { model.selectPreset(preset) }) {
                             HStack {
@@ -234,11 +230,6 @@ extension CameraView {
                 .listStyle(.inset)
                 .listRowSeparator(.hidden)
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
-            .tabItem {
-                Image(systemName: "slider.horizontal.3")
-            }
         }
     }
 
@@ -247,7 +238,7 @@ extension CameraView {
 
         var body: some View {
             List {
-                Section(header: Text("Devices").font(.largeTitle).bold()) {
+                Section(header: Text("Devices").bold()) {
                     ForEach(model.devices, id: \.uniqueID) { device in
                         Button(action: { model.selectDevice(device) }) {
                             HStack {
@@ -261,11 +252,6 @@ extension CameraView {
                     }
                 }
             }
-            .background(Color.clear)
-            .scrollContentBackground(.hidden)
-            .tabItem {
-                Image(systemName: "camera.on.rectangle")
-            }
         }
     }
 
@@ -274,7 +260,7 @@ extension CameraView {
 
         var body: some View {
             List {
-                Section(header: Text("Formats").font(.largeTitle).bold()) {
+                Section(header: Text("Formats").bold()) {
                     ForEach(model.formats, id: \.self) { format in
                         Button(action: { model.selectFormat(format) }) {
                             HStack {
@@ -287,11 +273,6 @@ extension CameraView {
                         }
                     }
                 }
-            }
-            .background(Color.clear)
-            .scrollContentBackground(.hidden)
-            .tabItem {
-                Image(systemName: "photo.badge.arrow.down")
             }
         }
     }
@@ -308,8 +289,6 @@ extension CameraView {
             }
         }
     }
-
-    
 }
 
 #Preview {

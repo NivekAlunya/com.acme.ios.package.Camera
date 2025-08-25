@@ -8,8 +8,6 @@
 import CoreImage
 @preconcurrency import AVFoundation
 
-
-
 actor CameraStream: CameraStreamProtocol {
     private(set) var isPreviewPaused = false
     /// Continuation used to yield preview frames into the async stream.
@@ -23,10 +21,10 @@ actor CameraStream: CameraStreamProtocol {
         }
     }()
     /// Continuation used to yield captured photos into the async stream.
-    private var photoContinuation: AsyncStream<AVCapturePhoto>.Continuation?
+    private var photoContinuation: AsyncStream<CIImage>.Continuation?
     
     /// Public async stream of captured photos.
-    private(set) lazy var photoStream: AsyncStream<AVCapturePhoto> = {
+    private(set) lazy var photoStream: AsyncStream<CIImage> = {
         AsyncStream { continuation in
             // Store continuation to yield photos later.
             self.photoContinuation = continuation
@@ -41,8 +39,8 @@ actor CameraStream: CameraStreamProtocol {
     }
     
     /// Emits a captured photo to the photo stream if not paused or stopped.
-    func emitPhoto(_ photo: AVCapturePhoto) {
-        photoContinuation?.yield(photo)
+    func emitPhoto(_ ciImage: CIImage) {
+        photoContinuation?.yield(ciImage)
     }
     
     func pause() {
