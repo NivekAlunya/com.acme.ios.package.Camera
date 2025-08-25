@@ -2,6 +2,7 @@
 
 A modern, easy-to-use, and customizable camera package for SwiftUI applications. Built with async/await and actors for a robust and thread-safe camera experience.
 
+
 ## Features
 
 - **SwiftUI Native:** Designed from the ground up for SwiftUI, providing a `CameraView` that can be easily integrated into any view hierarchy.
