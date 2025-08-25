@@ -9,26 +9,19 @@ import AVFoundation
 
 
 struct CameraConfiguration {
-    var deviceInput: AVCaptureDeviceInput? {
-        didSet {
-            buildRotationCoordinator()
-        }
-    }
+    private(set)var deviceInput: AVCaptureDeviceInput?
     var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
-
     var flashMode: CameraFlashMode = .unavailbale
     var videoCodecType: VideoCodecType = .hevc
     var zoom: Float = 1.0
-    var position: AVCaptureDevice.Position = .back {
-        didSet {
-            setup()
-        }
-    }
+    var position: AVCaptureDevice.Position = .back
     var quality: AVCapturePhotoOutput.QualityPrioritization = .balanced
     var preset: CaptureSessionPreset = .photo
     private(set) var listCaptureDevice = [AVCaptureDevice]()
     private(set) var listSupportedFormat = [VideoCodecType]()
-    private(set) var photoOutput = AVCapturePhotoOutput()
+    private(set) var photoOutput: AVCapturePhotoOutput
+    private let videoOutput = AVCaptureVideoDataOutput()
+    private var isCaptureSessionOutputConfigured = false
 
     init(deviceInput: AVCaptureDeviceInput? = nil, flashMode: CameraFlashMode = .off, videoCodecType: VideoCodecType = .hevc, zoom: Float = 1.0, position: AVCaptureDevice.Position = .back, quality: AVCapturePhotoOutput.QualityPrioritization = .balanced, preset: CaptureSessionPreset = .photo, photoOutput: AVCapturePhotoOutput = AVCapturePhotoOutput()) {
         self.deviceInput = deviceInput
@@ -39,21 +32,25 @@ struct CameraConfiguration {
         self.quality = quality
         self.preset = preset
         self.photoOutput = photoOutput
+        refreshAvailableDevices()
     }
     
-    private mutating func setup() {
-        listSupportedFormat = photoOutput.availablePhotoCodecTypes.compactMap{
-            VideoCodecType(avVideoCodecType: $0)
-        }
+    private mutating func refreshAvailableDevices() {
         let cameras = CaptureDeviceType.allCases.map { $0.deviceType }
         let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: cameras, mediaType: .video, position: position)
         listCaptureDevice = discoverySession.devices.filter { $0.position == position }
-        let isFlashAvailable = deviceInput?.device.isFlashAvailable ?? false
-        flashMode = isFlashAvailable ? .auto : .unavailbale
     }
     
-    func getDefaultCamera() -> AVCaptureDevice? {
-        listCaptureDevice.first ?? AVCaptureDevice.default(for: .video)
+    private mutating func setupDevice() {
+        let isFlashAvailable = deviceInput?.device.isFlashAvailable ?? false
+        flashMode = isFlashAvailable ? .auto : .unavailbale
+        buildRotationCoordinator()
+    }
+
+    mutating func setupOutput() {
+        listSupportedFormat = photoOutput.availablePhotoCodecTypes.compactMap{
+            VideoCodecType(avVideoCodecType: $0)
+        }
     }
     
     func buildPhotoSettings() async -> AVCapturePhotoSettings  {
@@ -80,6 +77,50 @@ struct CameraConfiguration {
     
     mutating func switchPosition() {
         position = position == .back ? .front : .back
+        refreshAvailableDevices()
+    }
+
+    mutating func setupCaptureDeviceOutput(forSession session: AVCaptureSession, delegate: AVCaptureVideoDataOutputSampleBufferDelegate) throws {
+        guard !isCaptureSessionOutputConfigured else {
+            return
+        }
+        
+        // Add photo output if supported
+        guard session.canAddOutput(photoOutput) else {
+            throw CameraError.cannotAddOutput
+        }
+        
+        session.addOutput(photoOutput)
+        // Add video data output for preview frames
+        guard session.canAddOutput(videoOutput) else {
+            throw CameraError.cannotAddOutput
+        }
+        videoOutput.setSampleBufferDelegate(delegate, queue: DispatchQueue(label: "camera_preview_video_output"))
+        session.addOutput(videoOutput)
+
+        setupOutput()
+
+        isCaptureSessionOutputConfigured = true
+    }
+
+    mutating func setupCaptureDevice(device: AVCaptureDevice, forSession session: AVCaptureSession) throws {
+
+        do {
+            let input = try AVCaptureDeviceInput(device: device)
+            guard session.canAddInput(input) else {
+                throw CameraError.cannotAddInput
+            }
+            session.addInput(input)
+            deviceInput = input
+            setupDevice()
+            print("\(input.device.localizedName)")
+        } catch {
+            throw CameraError.creationFailed
+        }
     }
     
+    func getDefaultCamera() -> AVCaptureDevice? {
+        listCaptureDevice.first ?? AVCaptureDevice.default(for: .video)
+    }
+
 }

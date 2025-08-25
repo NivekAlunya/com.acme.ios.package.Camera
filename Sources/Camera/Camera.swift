@@ -3,7 +3,7 @@
 //  Camera
 //
 //  Created by Kevin LAUNAY on 12/08/2025.
-//  
+//
 //
 // Camera actor implementation using AVFoundation and async/await for video preview and photo capture.
 
@@ -25,13 +25,11 @@ actor Camera: NSObject, CameraProtocol {
     private let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let queue = DispatchQueue(label: "CameraSessionQueue")
-    private var isCaptureSessionConfigured = false
-    private var isCaptureSessionOutputConfigured = false
     private var isSetupNeeded: Bool = true
 
     override init() {
         super.init()
-        
+
         Task { @MainActor in
             UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         }
@@ -53,7 +51,12 @@ actor Camera: NSObject, CameraProtocol {
         }
     }
     
-    func changeCamera(device: AVCaptureDevice?) async throws {
+    func changeCamera(device: AVCaptureDevice) async throws {
+        try await changeDevice(device: device)
+    }
+
+    
+    private func changeDevice(device: AVCaptureDevice) async throws {
         try await stop()
         removeDevice()
         try setup(device: device)
@@ -62,54 +65,14 @@ actor Camera: NSObject, CameraProtocol {
     
     func swicthPosition() async throws {
         config.switchPosition()
-        try await changeCamera(device: nil)
-    }
-    
-    
-    private func setupCaptureDeviceOutput() throws {
-        guard !isCaptureSessionOutputConfigured else {
-            return
+        guard let device = config.getDefaultCamera() else {
+            throw CameraError.cameraUnavailable
         }
-        
-        // Add photo output if supported
-        guard session.canAddOutput(config.photoOutput) else {
-            throw CameraError.cannotAddOutput
-        }
-        
-        session.addOutput(config.photoOutput)
-        
-        // Add video data output for preview frames
-        guard session.canAddOutput(videoOutput) else {
-            throw CameraError.cannotAddOutput
-        }
-        videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_preview_video_output"))
-        session.addOutput(videoOutput)
-        isCaptureSessionOutputConfigured = true
+        try await changeDevice(device: device)
     }
     
     func getDefaultCamera() -> AVCaptureDevice? {
         config.listCaptureDevice.first ?? AVCaptureDevice.default(for: .video)
-    }
-    
-    private func setupCaptureDevice(device: AVCaptureDevice?) throws {
-
-        guard let camera = device ?? config.getDefaultCamera() else {
-            throw CameraError.cameraUnavailable
-        }
-        
-        do {
-            let input = try AVCaptureDeviceInput(device: camera)
-            
-            guard session.canAddInput(input) else {
-                throw CameraError.cannotAddInput
-            }
-            session.addInput(input)
-            
-            self.config.deviceInput = input
-            print("\(input.device.localizedName)")
-        } catch {
-            throw CameraError.creationFailed
-        }
     }
     
     func start() async throws {
@@ -123,7 +86,10 @@ actor Camera: NSObject, CameraProtocol {
         await stream.resume()
         
         if isSetupNeeded {
-            try setup()
+            guard let device = config.getDefaultCamera() else {
+                throw CameraError.cameraUnavailable
+            }
+            try setup(device: device)
         }
         
         guard !self.session.isRunning
@@ -136,17 +102,16 @@ actor Camera: NSObject, CameraProtocol {
         }
     }
     
-    private func setup(device: AVCaptureDevice? = nil) throws {
+    private func setup(device: AVCaptureDevice) throws {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         session.sessionPreset = config.preset.avPreset
-        try setupCaptureDevice(device: device)
-        try setupCaptureDeviceOutput()
+        try config.setupCaptureDevice(device: device, forSession: session)
+        try config.setupCaptureDeviceOutput(forSession: session, delegate: self)
         isSetupNeeded = false
     }
 
     func resume() async {
-        guard isCaptureSessionConfigured else { return }
         await stream.resume()
         queue.async {
             self.session.startRunning()
@@ -155,7 +120,6 @@ actor Camera: NSObject, CameraProtocol {
     
     /// Stops the capture session safely and pauses preview emission.
     func stop() async {
-        guard isCaptureSessionConfigured else { return }
         
         if session.isRunning {
             await stream.pause()
@@ -165,10 +129,8 @@ actor Camera: NSObject, CameraProtocol {
         }
     }
     
-    func exit() {
-        Task {
-            await stream.finish()
-        }
+    func end() async {
+        await stream.finish()
     }
     
     deinit {
@@ -189,6 +151,7 @@ actor Camera: NSObject, CameraProtocol {
                 photoOutputVideoConnection.videoOrientation = videoOrientation
             }
         }
+        await stream.pause()
         let photoSettings = await config.buildPhotoSettings()
         photoSettings.flashMode = config.flashMode.avFlashMode
         self.config.photoOutput.capturePhoto(with: photoSettings, delegate: self)
@@ -219,7 +182,7 @@ extension Camera: AVCapturePhotoCaptureDelegate {
         Task {
             await self.stream.emitPhoto(photo)
         }
-        
+
     }
 }
 extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
