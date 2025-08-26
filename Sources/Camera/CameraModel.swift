@@ -216,8 +216,12 @@ public class CameraModel: ObservableObject {
     }
 
     private func setPhoto(photo: CIImage) async {
+        guard let cgImage = await photo.toCGImage() else {
+            self.preview = nil
+            return
+        }
         state = .validating
-//        self.preview = Image(avCapturePhoto: photo)
+        self.preview = Image(decorative: cgImage, scale: 1, orientation: .up)
         await camera.stop()
     }
 }
