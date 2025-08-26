@@ -7,8 +7,8 @@
 //
 // Camera actor implementation using AVFoundation and async/await for video preview and photo capture.
 
-import Foundation
 @preconcurrency import AVFoundation
+import Foundation
 import UIKit
 
 enum CameraError: Error {
@@ -16,37 +16,34 @@ enum CameraError: Error {
     case cannotAddInput
     case cannotAddOutput
     case creationFailed
+    case zoomUpdateFailed
 }
 
-public actor Camera: NSObject, CameraProtocol {
-    func createStreams() {
-        stream = CameraStream()
-    }
-        
+public actor Camera: NSObject {
+
     var config: CameraConfiguration
     var stream: any CameraStreamProtocol = CameraStream()
-    private(set)  var photo: AVCapturePhoto?
+    private(set) var photo: AVCapturePhoto?
     private let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let queue = DispatchQueue(label: "CameraSessionQueue")
     private var isSetupNeeded: Bool = true
 
     public override init() {
-        
+
         self.config = CameraConfiguration()
         super.init()
         Task { @MainActor in
             UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         }
     }
-                
-    func changePreset(preset: CaptureSessionPreset = .photo) {
-        session.beginConfiguration()
-        defer { session.commitConfiguration() }
-        config.preset = preset
-        session.sessionPreset = config.preset.avPreset
+
+    deinit {
+        Task { @MainActor in
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        }
     }
- 
+
     private func removeDevice() {
         if session.isRunning {
             session.stopRunning()
@@ -55,18 +52,13 @@ public actor Camera: NSObject, CameraProtocol {
             session.removeInput(deviceInput)
         }
     }
-    
-    func changeCamera(device: AVCaptureDevice) async throws {
-        try await changeDevice(device: device)
-    }
-    
     private func changeDevice(device: AVCaptureDevice) async throws {
         try await stop()
         removeDevice()
         try setup(device: device)
         try await start()
     }
-    
+
     func switchPosition() async throws {
         config.switchPosition()
         guard let device = config.getDefaultCamera() else {
@@ -74,40 +66,13 @@ public actor Camera: NSObject, CameraProtocol {
         }
         try await changeDevice(device: device)
     }
-    
-    func getDefaultCamera() -> AVCaptureDevice? {
+
+    private func getDefaultCamera() -> AVCaptureDevice? {
         config.listCaptureDevice.first ?? AVCaptureDevice.default(for: .video)
     }
-    
-    func start() async throws {
-        queue.suspend()
-        let authorized = await CameraHelper.checkAuthorization()
-        guard authorized else {
-            print("Camera access was not authorized.")
-            return
-        }
-        queue.resume()
-        await stream.resume()
-        
-        if isSetupNeeded {
-            guard let device = config.getDefaultCamera() else {
-                throw CameraError.cameraUnavailable
-            }
-            try setup(device: device)
-        }
-        
-        guard !self.session.isRunning
-        else {
-            return
-        }
-        
-        queue.async {
-            self.session.startRunning()
-        }
-    }
-    
+
     private func setup(device: AVCaptureDevice) throws {
-        
+
         if self.session.isRunning {
             self.session.stopRunning()
         }
@@ -120,16 +85,77 @@ public actor Camera: NSObject, CameraProtocol {
         isSetupNeeded = false
     }
 
+    func getAVCaptureVideoOrientation() async -> AVCaptureVideoOrientation? {
+        await Task { @MainActor in
+            CameraHelper.videoOrientationFor(UIDevice.current.orientation)
+        }.value
+    }
+
+    func processPhoto(_ photo: AVCapturePhoto) async {
+
+        guard let data = photo.fileDataRepresentation(),
+            let ciImage = CIImage(data: data, options: [.applyOrientationProperty: true])
+        else {
+            return
+        }
+        self.photo = photo
+        await self.stream.emitPhoto(ciImage)
+    }
+}
+
+extension Camera: CameraProtocol {
+    func changeZoom(_ factor: Float) throws {
+        guard let device = config.deviceInput?.device else { return }
+        do {
+            try device.lockForConfiguration()
+            device.videoZoomFactor = max(
+                1.0, min(CGFloat(factor), device.activeFormat.videoMaxZoomFactor))
+            device.unlockForConfiguration()
+            config.zoom = Float(device.videoZoomFactor)
+
+        } catch {
+            throw CameraError.zoomUpdateFailed
+        }
+    }
+
+    // MARK - CameraProtocol
+    func start() async throws {
+        queue.suspend()
+        let authorized = await CameraHelper.checkAuthorization()
+        guard authorized else {
+            print("Camera access was not authorized.")
+            return
+        }
+        queue.resume()
+        await stream.resume()
+
+        if isSetupNeeded {
+            guard let device = config.getDefaultCamera() else {
+                throw CameraError.cameraUnavailable
+            }
+            try setup(device: device)
+        }
+
+        guard !self.session.isRunning
+        else {
+            return
+        }
+
+        queue.async {
+            self.session.startRunning()
+        }
+    }
+
     func resume() async {
         await stream.resume()
         queue.async {
             self.session.startRunning()
         }
     }
-    
+
     /// Stops the capture session safely and pauses preview emission.
     func stop() async {
-        
+
         if session.isRunning {
             await stream.pause()
             queue.async {
@@ -137,23 +163,18 @@ public actor Camera: NSObject, CameraProtocol {
             }
         }
     }
-    
+
     func end() async {
         await stream.finish()
     }
-    
-    deinit {
-        Task { @MainActor in
-            UIDevice.current.endGeneratingDeviceOrientationNotifications()
-        }
-    }
-    
+
     func takePhoto() async {
         let videoOrientation = await getAVCaptureVideoOrientation()
         if let photoOutputVideoConnection = self.config.photoOutput.connection(with: .video) {
             // Set video orientation for the photo output connection if supported.
-            if photoOutputVideoConnection.isVideoRotationAngleSupported(90.0)
-                , let videoOrientation = videoOrientation {
+            if photoOutputVideoConnection.isVideoRotationAngleSupported(90.0),
+                let videoOrientation = videoOrientation
+            {
                 photoOutputVideoConnection.videoOrientation = videoOrientation
             }
         }
@@ -162,34 +183,44 @@ public actor Camera: NSObject, CameraProtocol {
         photoSettings.flashMode = config.flashMode.avFlashMode
         self.config.photoOutput.capturePhoto(with: photoSettings, delegate: self)
     }
-         
-    func switchFlash(_ value: CameraFlashMode) {
-        config.flashMode = value
+
+    func changePreset(preset: CaptureSessionPreset = .photo) {
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+        config.preset = preset
+        session.sessionPreset = config.preset.avPreset
     }
-    
+
+    func changeCamera(device: AVCaptureDevice) async throws {
+        try await changeDevice(device: device)
+    }
+
+    func swicthPosition() async throws {
+        config.switchPosition()
+        guard let device = config.getDefaultCamera() else {
+            throw CameraError.cameraUnavailable
+        }
+        try await changeDevice(device: device)
+    }
+
     func changeCodec(_ codec: VideoCodecType) {
         config.videoCodecType = codec
     }
 
-    func getAVCaptureVideoOrientation() async -> AVCaptureVideoOrientation?  {
-        await Task { @MainActor in
-            CameraHelper.videoOrientationFor(UIDevice.current.orientation)
-        }.value
+    func changeFlashMode(_ flashMode: CameraFlashMode) {
+        config.flashMode = flashMode
     }
-    
-    func processPhoto(_ photo: AVCapturePhoto) async {
-        
-        guard let data = photo.fileDataRepresentation()
-            , let ciImage = CIImage(data: data, options: [.applyOrientationProperty:true]) else {
-            return
-        }
-        self.photo = photo
-        await self.stream.emitPhoto(ciImage)
+
+    func createStreams() {
+        stream = CameraStream()
     }
 }
 
 extension Camera: AVCapturePhotoCaptureDelegate {
-    nonisolated public func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+    nonisolated public func photoOutput(
+        _ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,
+        error: Error?
+    ) {
         if let error {
             print("Error capturing photo: \(error.localizedDescription)")
             return
@@ -201,9 +232,12 @@ extension Camera: AVCapturePhotoCaptureDelegate {
 }
 
 extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
-    
-    nonisolated public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        
+
+    nonisolated public func captureOutput(
+        _ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+
         guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
 
         let image = CIImage(cvPixelBuffer: pixelBuffer)
@@ -211,8 +245,9 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
             guard let rotationCoordinator = await config.rotationCoordinator else {
                 return
             }
-            connection.videoRotationAngle = await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
-            
+            connection.videoRotationAngle =
+                await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
+
             await self.stream.emitPreview(image)
         }
     }

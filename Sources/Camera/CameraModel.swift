@@ -45,10 +45,14 @@ public class CameraModel: ObservableObject {
     @Published var presets = CaptureSessionPreset.allCases
     @Published var devices: [AVCaptureDevice] = []
     @Published var formats: [VideoCodecType] = []
+    @Published var flashModes: [CameraFlashMode] = []
 
     @Published var selectedPreset: CaptureSessionPreset = .photo
     @Published var selectedDevice: AVCaptureDevice?
     @Published var selectedFormat: VideoCodecType = .hevc
+    @Published var selectedFlashMode: CameraFlashMode = .unavailable
+    @Published var zoomRange = 1.0...1.0
+    @Published var zoom: Double = 1.0
 
     // MARK: - Private Properties
 
@@ -77,7 +81,6 @@ public class CameraModel: ObservableObject {
         photoTask = Task { await handlePhotoCapture() }
         do {
             try await camera.start()
-            self.position = await camera.config.position
             await loadSettings()
             state = .previewing
         } catch (let error as CameraError) {
@@ -107,12 +110,6 @@ public class CameraModel: ObservableObject {
         }
     }
 
-    func handleSwitchFlash() {
-        Task {
-            await camera.switchFlash(.auto)
-        }
-    }
-    
     func handleExit() {
         Task {
             await stop()
@@ -163,6 +160,7 @@ public class CameraModel: ObservableObject {
             selectedDevice = device
             do {
                 try await camera.changeCamera(device: device)
+                zoom = await Double(camera.config.zoom)
             } catch (let error as CameraError) {
                 self.error = error
             } catch {
@@ -178,6 +176,29 @@ public class CameraModel: ObservableObject {
         }
     }
 
+    func selectFlashMode(_ flashMode: CameraFlashMode) {
+        Task {
+            await camera.changeFlashMode(flashMode)
+            selectedFlashMode = await camera.config.flashMode
+        }
+    }
+
+    func selectZoom(_ zoom: Double) {
+        Task {
+            do {
+                try await camera.changeZoom(Float(zoom))
+                self.zoom = await Double(camera.config.zoom)
+            } catch (let error as CameraError) {
+                self.error = error
+            } catch {
+                
+            }
+            
+            
+        }
+    }
+
+    
     // MARK: - Private Methods
 
     private func loadSettings() async {
@@ -187,12 +208,16 @@ public class CameraModel: ObservableObject {
         } else if let firstDevice = devices.first {
             selectedDevice = firstDevice
         }
-
+        
+        self.position = await camera.config.position
         devices = await camera.config.listCaptureDevice
         formats = await camera.config.listSupportedFormat
-
+        flashModes = await camera.config.listFlashMode
+        selectedFlashMode = await camera.config.flashMode
         selectedPreset = await camera.config.preset
         selectedFormat = await camera.config.videoCodecType
+        zoom = await Double(camera.config.zoom)
+        zoomRange = await camera.config.zoomRange
     }
     
     private func handleCameraPreviews() async {

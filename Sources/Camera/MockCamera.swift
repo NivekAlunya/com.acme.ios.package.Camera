@@ -4,29 +4,40 @@
 //
 //  Created by Kevin LAUNAY.
 
-import Foundation
 @preconcurrency import AVFoundation
 import CoreImage
+import Foundation
 
 // MARK: - MockCameraActor
 actor MockCamera: CameraProtocol {
     var previewImages: [CIImage]
     var photoImages: [CIImage]
 
+    func changeZoom(_ factor: Float) {
+
+    }
+
+    func changeFlashMode(_ flashMode: CameraFlashMode) {
+
+    }
+
     func createStreams() {
         stream = CameraStream()
     }
-    
+
     func setConfig(_ config: CameraConfiguration) throws {
         self.config = config
     }
-    
+
     var photo: AVCapturePhoto?
-    
+
     var stream: any CameraStreamProtocol
     var config: CameraConfiguration
 
-    init(configuration: CameraConfiguration = CameraConfiguration(), previewImages: [CIImage] = [], photoImages: [CIImage] = []) {
+    init(
+        configuration: CameraConfiguration = CameraConfiguration(), previewImages: [CIImage] = [],
+        photoImages: [CIImage] = []
+    ) {
         self.config = configuration
         self.stream = CameraStream()
         self.previewImages = previewImages
@@ -81,4 +92,3 @@ actor MockCamera: CameraProtocol {
         // No-op for mock
     }
 }
-
