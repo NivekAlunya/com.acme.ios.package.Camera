@@ -59,13 +59,6 @@ public actor Camera: NSObject {
         try await start()
     }
 
-    func switchPosition() async throws {
-        config.switchPosition()
-        guard let device = config.getDefaultCamera() else {
-            throw CameraError.cameraUnavailable
-        }
-        try await changeDevice(device: device)
-    }
 
     private func getDefaultCamera() -> AVCaptureDevice? {
         config.listCaptureDevice.first ?? AVCaptureDevice.default(for: .video)
