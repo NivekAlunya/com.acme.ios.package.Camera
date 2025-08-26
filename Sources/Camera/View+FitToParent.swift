@@ -1,8 +1,8 @@
 //
-//  FitToParent.swift
+//  View+FitToParent.swift
 //  Camera
 //
-//  Created by Kevin LAUNAY on 19/08/2025.
+//  Created by Kevin LAUNAY.
 //
 
 import SwiftUI

@@ -2,7 +2,7 @@
 //  CameraConfiguration.swift
 //  Camera
 //
-//  Created by Kevin LAUNAY on 22/08/2025.
+//  Created by Kevin LAUNAY.
 //
 
 import AVFoundation
@@ -11,7 +11,7 @@ import AVFoundation
 public struct CameraConfiguration {
     private(set)var deviceInput: AVCaptureDeviceInput?
     var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
-    var flashMode: CameraFlashMode = .unavailbale
+    var flashMode: CameraFlashMode = .unavailable
     var videoCodecType: VideoCodecType = .hevc
     var zoom: Float = 1.0
     var position: AVCaptureDevice.Position = .back
@@ -43,7 +43,7 @@ public struct CameraConfiguration {
     
     private mutating func setupDevice() {
         let isFlashAvailable = deviceInput?.device.isFlashAvailable ?? false
-        flashMode = isFlashAvailable ? .auto : .unavailbale
+        flashMode = isFlashAvailable ? .auto : .unavailable
         buildRotationCoordinator()
     }
 

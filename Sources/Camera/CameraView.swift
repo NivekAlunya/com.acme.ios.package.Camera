@@ -2,7 +2,7 @@
 //  CameraView.swift
 //  Camera
 //
-//  Created by Kevin LAUNAY on 12/08/2025.
+//  Created by Kevin LAUNAY.
 //
 
 import SwiftUI

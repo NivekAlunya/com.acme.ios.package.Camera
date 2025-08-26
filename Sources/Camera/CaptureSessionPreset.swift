@@ -1,8 +1,8 @@
 //
-//  AVCaptureSessionPreset.swift
+//  CaptureSessionPreset.swift
 //  Camera
 //
-//  Created by Kevin LAUNAY on 20/08/2025.
+//  Created by Kevin LAUNAY.
 //
 
 import AVFoundation

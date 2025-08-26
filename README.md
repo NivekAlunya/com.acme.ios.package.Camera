@@ -20,7 +20,7 @@ A modern, easy-to-use, and customizable camera package for SwiftUI applications.
 You can add the `Camera` package to your Xcode project using the Swift Package Manager.
 
 1. In Xcode, open your project and navigate to **File > Add Packages...**
-2. In the "Search or Enter Package URL" field, enter the repository URL: `https://github.com/NivekAlunya/Camera` (assuming this is the repo URL)
+2. In the "Search or Enter Package URL" field, enter the repository URL: `https://github.com/NivekAlunya/Camera`
 3. Xcode will fetch the package and you can add `"Camera"` to your app's target.
 
 ## Usage

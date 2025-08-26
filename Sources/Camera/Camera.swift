@@ -1,8 +1,8 @@
 //
-//  File.swift
+//  Camera.swift
 //  Camera
 //
-//  Created by Kevin LAUNAY on 12/08/2025.
+//  Created by Kevin LAUNAY.
 //
 //
 // Camera actor implementation using AVFoundation and async/await for video preview and photo capture.
@@ -67,7 +67,7 @@ public actor Camera: NSObject, CameraProtocol {
         try await start()
     }
     
-    func swicthPosition() async throws {
+    func switchPosition() async throws {
         config.switchPosition()
         guard let device = config.getDefaultCamera() else {
             throw CameraError.cameraUnavailable

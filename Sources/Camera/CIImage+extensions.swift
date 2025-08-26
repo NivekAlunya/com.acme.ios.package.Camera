@@ -1,15 +1,15 @@
 //
-//  extension.swift
-//  camera
+//  CIImage+extensions.swift
+//  Camera
 //
-//  Created by Kevin LAUNAY on 12/08/2025.
+//  Created by Kevin LAUNAY.
 //
 
 import SwiftUI
 import CoreImage
 import CoreGraphics
  
-// Re-use the CIContext for performance.
+// Reuse the CIContext for performance.
 // This should be initialized once and shared across your image processing pipeline.
 private let sharedCIContext = CIContext()
 extension CIImage {

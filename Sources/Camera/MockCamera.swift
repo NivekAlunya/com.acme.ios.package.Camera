@@ -1,7 +1,8 @@
-//  MockCameraActor.swift
+//
+//  MockCamera.swift
 //  Camera
 //
-//  Created for testing and previews.
+//  Created by Kevin LAUNAY.
 
 import Foundation
 @preconcurrency import AVFoundation
@@ -9,6 +10,9 @@ import CoreImage
 
 // MARK: - MockCameraActor
 actor MockCamera: CameraProtocol {
+    var previewImages: [CIImage]
+    var photoImages: [CIImage]
+
     func createStreams() {
         stream = CameraStream()
     }
@@ -22,9 +26,11 @@ actor MockCamera: CameraProtocol {
     var stream: any CameraStreamProtocol
     var config: CameraConfiguration
 
-    init(configuration: CameraConfiguration = CameraConfiguration()) {
+    init(configuration: CameraConfiguration = CameraConfiguration(), previewImages: [CIImage] = [], photoImages: [CIImage] = []) {
         self.config = configuration
         self.stream = CameraStream()
+        self.previewImages = previewImages
+        self.photoImages = photoImages
     }
 
     private func samplePreviewImage() -> CIImage {
@@ -40,7 +46,9 @@ actor MockCamera: CameraProtocol {
     }
 
     func start() async throws {
-        await stream.emitPreview(samplePreviewImage())
+        for image in previewImages {
+            await stream.emitPreview(image)
+        }
     }
 
     func resume() async {
@@ -52,7 +60,9 @@ actor MockCamera: CameraProtocol {
     }
 
     func takePhoto() async {
-        // No-op for mock
+        for image in photoImages {
+            await stream.emitPhoto(image)
+        }
     }
 
     func switchFlash(_ value: CameraFlashMode) {
@@ -63,7 +73,7 @@ actor MockCamera: CameraProtocol {
         config.videoCodecType = codec
     }
 
-    func swicthPosition() async throws {
+    func switchPosition() async throws {
         config.switchPosition()
     }
 
