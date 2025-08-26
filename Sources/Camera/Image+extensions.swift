@@ -28,4 +28,5 @@ extension Image {
         let imageOrientation = Image.Orientation(cgImageOrientation)
         self = Image(decorative: cgImage, scale: 1, orientation: imageOrientation)
     }
+    
 }

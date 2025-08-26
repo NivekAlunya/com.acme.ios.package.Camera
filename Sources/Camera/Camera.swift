@@ -18,18 +18,23 @@ enum CameraError: Error {
     case creationFailed
 }
 
-actor Camera: NSObject, CameraProtocol {
-
-    var config = CameraConfiguration()
+public actor Camera: NSObject, CameraProtocol {
+    func createStreams() {
+        stream = CameraStream()
+    }
+        
+    var config: CameraConfiguration
     var stream: any CameraStreamProtocol = CameraStream()
+    private(set)  var photo: AVCapturePhoto?
     private let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let queue = DispatchQueue(label: "CameraSessionQueue")
     private var isSetupNeeded: Bool = true
 
-    override init() {
+    public override init() {
+        
+        self.config = CameraConfiguration()
         super.init()
-
         Task { @MainActor in
             UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         }
@@ -54,7 +59,6 @@ actor Camera: NSObject, CameraProtocol {
     func changeCamera(device: AVCaptureDevice) async throws {
         try await changeDevice(device: device)
     }
-
     
     private func changeDevice(device: AVCaptureDevice) async throws {
         try await stop()
@@ -103,11 +107,16 @@ actor Camera: NSObject, CameraProtocol {
     }
     
     private func setup(device: AVCaptureDevice) throws {
+        
+        if self.session.isRunning {
+            self.session.stopRunning()
+        }
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         session.sessionPreset = config.preset.avPreset
         try config.setupCaptureDevice(device: device, forSession: session)
         try config.setupCaptureDeviceOutput(forSession: session, delegate: self)
+
         isSetupNeeded = false
     }
 
@@ -134,9 +143,6 @@ actor Camera: NSObject, CameraProtocol {
     }
     
     deinit {
-        Task { [stream] in
-            await stream.finish()
-        }
         Task { @MainActor in
             UIDevice.current.endGeneratingDeviceOrientationNotifications()
         }
@@ -170,24 +176,32 @@ actor Camera: NSObject, CameraProtocol {
             CameraHelper.videoOrientationFor(UIDevice.current.orientation)
         }.value
     }
+    
+    func processPhoto(_ photo: AVCapturePhoto) async {
+        guard let cgImage = photo.cgImageRepresentation() else {
+            return
+        }
+        self.photo = photo
+
+        await self.stream.emitPhoto(CIImage(cgImage: cgImage))
+    }
 }
 
 extension Camera: AVCapturePhotoCaptureDelegate {
     
-    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+    nonisolated public func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error {
             print("Error capturing photo: \(error.localizedDescription)")
             return
         }
         Task {
-            await self.stream.emitPhoto(photo)
+            await processPhoto(photo)
         }
-
     }
 }
 extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
     
-    nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+    nonisolated public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         
         guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
 

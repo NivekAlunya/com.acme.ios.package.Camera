@@ -13,11 +13,22 @@ import SwiftUI
 /// CameraModel manages camera state, preview streaming, and photo capture for SwiftUI views.
 @MainActor
 public class CameraModel: ObservableObject {
-    
+    typealias Capture = (photo: AVCapturePhoto?, config: CameraConfiguration?)
     // MARK: - State
 
-    enum State {
+    enum State: Equatable {
+        static func == (lhs: CameraModel.State, rhs: CameraModel.State) -> Bool {
+            switch (lhs, rhs) {
+            case (.accepted(let a), .accepted(let b)) where a.photo == b.photo: return true
+               case (.previewing, .previewing)
+                , (.processing, .processing)
+                , (.validating, .validating): return true
+               default: return false
+            }
+        }
+        
         case previewing, processing, validating
+        case accepted(Capture)
     }
     
     @Published var state = State.previewing
@@ -26,7 +37,7 @@ public class CameraModel: ObservableObject {
     // MARK: - Published Properties
 
     @Published var preview: Image?
-    @Published var capture: AVCapturePhoto?
+    @Published var capture: Capture?
     @Published var position: AVCaptureDevice.Position = .back
 
     // MARK: - Settings Properties
@@ -42,7 +53,6 @@ public class CameraModel: ObservableObject {
     // MARK: - Private Properties
 
     private let camera : any CameraProtocol
-    private var photo: AVCapturePhoto?
     private var previewTask: Task<Void, Never>?
     private var photoTask: Task<Void, Never>?
 
@@ -60,6 +70,9 @@ public class CameraModel: ObservableObject {
     // MARK: - Public Methods
 
     func start() async {
+        print("start")
+        await self.camera.createStreams()
+
         previewTask = Task { await handleCameraPreviews() }
         photoTask = Task { await handlePhotoCapture() }
         do {
@@ -122,15 +135,14 @@ public class CameraModel: ObservableObject {
     }
 
     func handleAcceptPhoto() {
-        capture = photo
         Task {
             await stop()
             await camera.end()
+            state = .accepted((photo: await camera.photo, config: await camera.config))
         }
     }
 
     func handleRejectPhoto() {
-        photo = nil
         Task {
             state = .previewing
             await camera.resume()
@@ -203,39 +215,13 @@ public class CameraModel: ObservableObject {
         self.preview = Image(decorative: cgImage, scale: 1, orientation: .up)
     }
 
-    private func setPhoto(photo: AVCapturePhoto) async {
-        self.photo = photo
+    private func setPhoto(photo: CIImage) async {
+        guard let cgImage = await photo.toCGImage() else {
+            self.preview = nil
+            return
+        }
         state = .validating
-        self.preview = Image(avCapturePhoto: photo)
+        self.preview = Image(decorative: cgImage, scale: 1, orientation: .up)
         await camera.stop()
     }
 }
-
-//extension CIImage {
-//    func toCGImage() -> CGImage? {
-//        let context = CIContext(options: nil)
-//        return context.createCGImage(self, from: self.extent)
-//    }
-//}
-//
-//extension Image {
-//    init?(avCapturePhoto: AVCapturePhoto) {
-//        guard let cgImage = avCapturePhoto.cgImageRepresentation(),
-//              let imageOrientation = cgImage.orientation else {
-//            return nil
-//        }
-//        
-//        let uiImage = UIImage(cgImage: cgImage, scale: 1.0, orientation: .right)
-//        self.init(uiImage: uiImage)
-//    }
-//}
-//
-//extension CGImage {
-//    var orientation: UIImage.Orientation? {
-//        guard let properties = self.properties,
-//              let orientationValue = properties[kCGImagePropertyOrientation as String] as? UInt32 else {
-//            return nil
-//        }
-//        return UIImage.Orientation(rawValue: Int(orientationValue))
-//    }
-//}
