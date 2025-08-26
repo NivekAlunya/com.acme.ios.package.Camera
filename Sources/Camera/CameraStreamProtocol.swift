@@ -1,7 +1,8 @@
+//
 //  CameraStreamProtocol.swift
 //  Camera
 //
-//  Created for protocol and mock implementations related to CameraStream.
+//  Created by Kevin LAUNAY.
 //
 
 import CoreImage

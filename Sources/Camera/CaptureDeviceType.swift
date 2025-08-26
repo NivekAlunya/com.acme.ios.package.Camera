@@ -2,7 +2,7 @@
 //  CaptureDeviceType.swift
 //  Camera
 //
-//  Created by Kevin LAUNAY on 20/08/2025.
+//  Created by Kevin LAUNAY.
 //
 
 import AVFoundation
@@ -36,7 +36,6 @@ public enum CaptureDeviceType: CaseIterable {
         case .builtInMicrophone: "builtInMicrophone"
         case .builtInTelephotoCamera: "builtInTelephotoCamera"
         case .builtInTripleCamera: "builtInTripleCamera"
-        case .builtInTripleCamera: "builtInTripleCamera"
         case .builtInTrueDepthCamera: "builtInTrueDepthCamera"
         case .builtInUltraWideCamera: "builtInUltraWideCamera"
         case .builtInWideAngleCamera: "builtInWideAngleCamera"
@@ -57,7 +56,6 @@ public enum CaptureDeviceType: CaseIterable {
         case .builtInLiDARDepthCamera: AVCaptureDevice.DeviceType.builtInLiDARDepthCamera
         case .builtInMicrophone: AVCaptureDevice.DeviceType.builtInMicrophone
         case .builtInTelephotoCamera: AVCaptureDevice.DeviceType.builtInTelephotoCamera
-        case .builtInTripleCamera: AVCaptureDevice.DeviceType.builtInTripleCamera
         case .builtInTripleCamera: AVCaptureDevice.DeviceType.builtInTripleCamera
         case .builtInTrueDepthCamera: AVCaptureDevice.DeviceType.builtInTrueDepthCamera
         case .builtInUltraWideCamera: AVCaptureDevice.DeviceType.builtInUltraWideCamera

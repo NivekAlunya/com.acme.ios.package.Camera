@@ -2,7 +2,7 @@
 //  CameraProtocol.swift
 //  Camera
 //
-//  Created by Kevin LAUNAY on 22/08/2025.
+//  Created by Kevin LAUNAY.
 //
 
 import Foundation
@@ -22,7 +22,7 @@ protocol CameraProtocol: Actor {
     func takePhoto() async
     func switchFlash(_ value: CameraFlashMode)
     func changeCodec(_ codec: VideoCodecType)
-    func swicthPosition() async throws
+    func switchPosition() async throws
     func end() async
     func createStreams()
 }

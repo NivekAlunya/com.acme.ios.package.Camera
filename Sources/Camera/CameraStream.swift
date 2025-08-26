@@ -2,7 +2,7 @@
 //  CameraStream.swift
 //  Camera
 //
-//  Created by Kevin LAUNAY on 22/08/2025.
+//  Created by Kevin LAUNAY.
 //
 
 import CoreImage

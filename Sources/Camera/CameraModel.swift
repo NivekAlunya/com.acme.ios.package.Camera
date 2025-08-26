@@ -1,8 +1,8 @@
 //
-//  File.swift
-//  camera
+//  CameraModel.swift
+//  Camera
 //
-//  Created by Kevin LAUNAY on 12/08/2025.
+//  Created by Kevin LAUNAY.
 //
 
 import Foundation
@@ -123,7 +123,7 @@ public class CameraModel: ObservableObject {
     func handleSwitchPosition() {
         Task {
             do {
-                try await camera.swicthPosition()
+                try await camera.switchPosition()
                 await loadSettings()
                 self.position = await camera.config.position
             } catch (let error as CameraError) {
