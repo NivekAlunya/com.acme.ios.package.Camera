@@ -59,7 +59,6 @@ public actor Camera: NSObject {
         try await start()
     }
 
-
     private func getDefaultCamera() -> AVCaptureDevice? {
         config.listCaptureDevice.first ?? AVCaptureDevice.default(for: .video)
     }

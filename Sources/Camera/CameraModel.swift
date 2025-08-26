@@ -74,7 +74,6 @@ public class CameraModel: ObservableObject {
     // MARK: - Public Methods
 
     func start() async {
-        print("start")
         await self.camera.createStreams()
 
         previewTask = Task { await handleCameraPreviews() }
