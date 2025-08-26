@@ -178,17 +178,17 @@ public actor Camera: NSObject, CameraProtocol {
     }
     
     func processPhoto(_ photo: AVCapturePhoto) async {
-        guard let cgImage = photo.cgImageRepresentation() else {
+        
+        guard let data = photo.fileDataRepresentation()
+            , let ciImage = CIImage(data: data, options: [.applyOrientationProperty:true]) else {
             return
         }
         self.photo = photo
-
-        await self.stream.emitPhoto(CIImage(cgImage: cgImage))
+        await self.stream.emitPhoto(ciImage)
     }
 }
 
 extension Camera: AVCapturePhotoCaptureDelegate {
-    
     nonisolated public func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error {
             print("Error capturing photo: \(error.localizedDescription)")
@@ -199,6 +199,7 @@ extension Camera: AVCapturePhotoCaptureDelegate {
         }
     }
 }
+
 extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
     
     nonisolated public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
