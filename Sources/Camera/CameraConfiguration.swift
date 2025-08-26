@@ -83,7 +83,6 @@ public struct CameraConfiguration {
             ])
         }
 
-        // Flash mode commented out; can be enabled if needed.
         photoSettings.flashMode = flashMode.avFlashMode
         photoSettings.photoQualityPrioritization = quality
         return photoSettings

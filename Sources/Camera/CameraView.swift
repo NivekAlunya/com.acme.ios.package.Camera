@@ -5,19 +5,19 @@
 //  Created by Kevin LAUNAY.
 //
 
-import SwiftUI
 import AVFoundation
+import SwiftUI
 
 public struct CameraView: View {
     @Environment(\.dismiss) var dismiss
-    public typealias OnComplete = (AVCapturePhoto?, CameraConfiguration?) -> ()
+    public typealias OnComplete = (AVCapturePhoto?, CameraConfiguration?) -> Void
 
     @StateObject var model: CameraModel
     @State var isSettingShown = false
     @State private var showErrorAlert = false
 
-    public let completion : OnComplete?
-    
+    public let completion: OnComplete?
+
     public init(camera: Camera = Camera(), completion: OnComplete?) {
         self.completion = completion
         _model = StateObject(wrappedValue: CameraModel(camera: camera))
@@ -27,7 +27,7 @@ public struct CameraView: View {
         self.completion = nil
         _model = StateObject(wrappedValue: model)
     }
-    
+
     public var body: some View {
         ZStack {
             ImagePreview(image: model.preview)
@@ -112,7 +112,7 @@ extension CameraView {
                 Color.black.opacity(0.5)
                     .ignoresSafeArea(edges: [.bottom, .trailing, .leading])
             }
-            
+
         }
     }
 
@@ -143,7 +143,7 @@ extension CameraView {
 
     struct TakePhotoButton: View {
         var action: () -> Void
-        
+
         var body: some View {
             Button(action: action) {
                 Image(systemName: "circle.circle.fill")
@@ -197,12 +197,12 @@ extension CameraView {
                     .tabItem {
                         Label("Cameras", systemImage: "camera.on.rectangle")
                     }
-                
+
                 FormatSettingsView(model: model)
                     .tabItem {
                         Label("Format", systemImage: "photo.badge.arrow.down")
                     }
-                
+
                 FlashModeSettingsView(model: model)
                     .tabItem {
                         Label("Format", systemImage: "bolt.fill")
@@ -238,26 +238,29 @@ extension CameraView {
     }
 
     struct DeviceSettingsView: View {
-        @StateObject var model: CameraModel
+        @ObservedObject var model: CameraModel
         var body: some View {
             List {
                 Section(header: Text("Devices").bold()) {
 
                     VStack {
-                        Slider(value: Binding(get: {
-                                model.zoom
-                            }, set: { value in
-                                model.selectZoom(value)
-                            }), in: model.zoomRange, step: 1) {
-                                Text("")
-                            }
+                        Slider(
+                            value: Binding(
+                                get: {
+                                    model.zoom
+                                },
+                                set: { value in
+                                    model.selectZoom(value)
+                                }), in: model.zoomRange, step: 1
+                        ) {
+                            Text("")
+                        }
                         Text("zoom \(model.zoom, specifier: "%.1f")x")
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
 
                     }
-                    
-                    
+
                     ForEach(model.devices, id: \.uniqueID) { device in
                         Button(action: { model.selectDevice(device) }) {
                             HStack {
@@ -318,10 +321,9 @@ extension CameraView {
         }
     }
 
-    
     struct ImagePreview: View {
         var image: Image?
-        
+
         var body: some View {
             if let image = image {
                 image
