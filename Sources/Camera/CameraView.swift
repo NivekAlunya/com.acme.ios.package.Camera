@@ -190,19 +190,23 @@ extension CameraView {
             TabView {
                 PresetSettingsView(model: model)
                     .tabItem {
-                        Image(systemName: "slider.horizontal.3")
+                        Label("Quality", systemImage: "slider.horizontal.3")
                     }
 
                 DeviceSettingsView(model: model)
                     .tabItem {
-                        Image(systemName: "camera.on.rectangle")
+                        Label("Cameras", systemImage: "camera.on.rectangle")
                     }
                 
                 FormatSettingsView(model: model)
                     .tabItem {
-                        Image(systemName: "photo.badge.arrow.down")
+                        Label("Format", systemImage: "photo.badge.arrow.down")
                     }
-
+                
+                FlashModeSettingsView(model: model)
+                    .tabItem {
+                        Label("Format", systemImage: "bolt.fill")
+                    }
             }
             .presentationDetents([.medium, .large])
             .presentationBackground(.clear)
@@ -234,11 +238,27 @@ extension CameraView {
     }
 
     struct DeviceSettingsView: View {
-        @ObservedObject var model: CameraModel
-
+        @StateObject var model: CameraModel
+//        @Binding var zoom: Double
         var body: some View {
             List {
                 Section(header: Text("Devices").bold()) {
+
+                    VStack {
+                        Slider(value: Binding(get: {
+                                model.zoom
+                            }, set: { value in
+                                model.selectZoom(value)
+                            }), in: model.zoomRange, step: 1) {
+                                Text("")
+                            }
+                        Text("zoom \(model.zoom, specifier: "%.1f")x")
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+
+                    }
+                    
+                    
                     ForEach(model.devices, id: \.uniqueID) { device in
                         Button(action: { model.selectDevice(device) }) {
                             HStack {
@@ -277,6 +297,29 @@ extension CameraView {
         }
     }
 
+    struct FlashModeSettingsView: View {
+        @ObservedObject var model: CameraModel
+
+        var body: some View {
+            List {
+                Section(header: Text("Formats").bold()) {
+                    ForEach(model.flashModes, id: \.self) { flashMode in
+                        Button(action: { model.selectFlashMode(flashMode) }) {
+                            HStack {
+                                Text(flashMode.name.uppercased())
+                                Spacer()
+                                if flashMode == model.selectedFlashMode {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    
     struct ImagePreview: View {
         var image: Image?
         
