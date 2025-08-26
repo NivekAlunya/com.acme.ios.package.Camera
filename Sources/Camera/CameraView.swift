@@ -239,7 +239,6 @@ extension CameraView {
 
     struct DeviceSettingsView: View {
         @StateObject var model: CameraModel
-//        @Binding var zoom: Double
         var body: some View {
             List {
                 Section(header: Text("Devices").bold()) {
@@ -302,7 +301,7 @@ extension CameraView {
 
         var body: some View {
             List {
-                Section(header: Text("Formats").bold()) {
+                Section(header: Text("Flash Modes").bold()) {
                     ForEach(model.flashModes, id: \.self) { flashMode in
                         Button(action: { model.selectFlashMode(flashMode) }) {
                             HStack {

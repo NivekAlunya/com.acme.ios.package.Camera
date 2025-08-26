@@ -23,7 +23,7 @@ protocol CameraProtocol: Actor {
     func changeCodec(_ codec: VideoCodecType)
     func changeFlashMode(_ flashMode: CameraFlashMode)
     func changeZoom(_ factor: Float) throws
-    func swicthPosition() async throws
+    func switchPosition() async throws
     func end() async
     func createStreams()
 }
