@@ -76,7 +76,7 @@ actor MockCamera: CameraProtocol {
         }
     }
 
-    func switchFlash(_ value: CameraFlashMode) {
+    func changeFlashMode(_ value: CameraFlashMode) {
         config.flashMode = value
     }
 
