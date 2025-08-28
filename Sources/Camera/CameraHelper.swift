@@ -29,6 +29,7 @@ public class CameraHelper {
             return false
         }
     }
+    
     static func videoOrientationFor(_ deviceOrientation: UIDeviceOrientation) -> AVCaptureVideoOrientation? {
         switch deviceOrientation {
         case .portrait:
@@ -42,5 +43,9 @@ public class CameraHelper {
         default:
             return nil
         }
+    }
+    
+    static func stringFrom(_ string: String, bundle: Bundle) -> LocalizedStringResource {
+        return LocalizedStringResource(String.LocalizationValue(string), table: "Camera", bundle: bundle)
     }
 }

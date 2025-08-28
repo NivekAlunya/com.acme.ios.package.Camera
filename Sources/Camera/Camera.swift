@@ -11,26 +11,29 @@
 import Foundation
 import UIKit
 
-enum CameraError: Error {
-    case cameraUnavailable
-    case cannotAddInput
-    case cannotAddOutput
-    case creationFailed
-    case zoomUpdateFailed
+
+
+enum CameraState: Error {
+    case needSetup
+    case unauthorized
+    case started
+    case paused
+    case ended
 }
+
 
 public actor Camera: NSObject {
 
+    static let shared = Camera()
     var config: CameraConfiguration
     var stream: any CameraStreamProtocol = CameraStream()
     private(set) var photo: AVCapturePhoto?
     private let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let queue = DispatchQueue(label: "CameraSessionQueue")
-    private var isSetupNeeded: Bool = true
+    private var state = CameraState.needSetup
 
     public override init() {
-
         self.config = CameraConfiguration()
         super.init()
         Task { @MainActor in
@@ -53,7 +56,7 @@ public actor Camera: NSObject {
         }
     }
     private func changeDevice(device: AVCaptureDevice) async throws {
-        try await stop()
+        try await pause()
         removeDevice()
         try setup(device: device)
         try await start()
@@ -68,13 +71,7 @@ public actor Camera: NSObject {
         if self.session.isRunning {
             self.session.stopRunning()
         }
-        session.beginConfiguration()
-        defer { session.commitConfiguration() }
-        session.sessionPreset = config.preset.avPreset
-        try config.setupCaptureDevice(device: device, forSession: session)
-        try config.setupCaptureDeviceOutput(forSession: session, delegate: self)
-
-        isSetupNeeded = false
+        try config.setup(device: device, session: session, delegate: self)
     }
 
     func getAVCaptureVideoOrientation() async -> AVCaptureVideoOrientation? {
@@ -112,27 +109,40 @@ extension Camera: CameraProtocol {
 
     // MARK - CameraProtocol
     func start() async throws {
+        defer {
+            queue.resume()
+        }
+
         queue.suspend()
+
+        guard !self.session.isRunning
+                
+        else {
+            throw CameraError.cannotStartCamera
+        }
+
+        
         let authorized = await CameraHelper.checkAuthorization()
         guard authorized else {
-            print("Camera access was not authorized.")
-            return
+            state = .unauthorized
+            throw CameraError.cameraUnauthorized
         }
-        queue.resume()
-        await stream.resume()
-
-        if isSetupNeeded {
+        
+        
+        switch state {
+        case .needSetup:
             guard let device = config.getDefaultCamera() else {
                 throw CameraError.cameraUnavailable
             }
             try setup(device: device)
+            await createStreams()
+        case .ended:
+            await createStreams()
+        default:
+            break
         }
-
-        guard !self.session.isRunning
-        else {
-            return
-        }
-
+        await stream.resume()
+        state = .started
         queue.async {
             self.session.startRunning()
         }
@@ -140,16 +150,17 @@ extension Camera: CameraProtocol {
 
     func resume() async {
         await stream.resume()
+        state = .started
         queue.async {
             self.session.startRunning()
         }
     }
 
     /// Stops the capture session safely and pauses preview emission.
-    func stop() async {
-
+    func pause() async {
         if session.isRunning {
             await stream.pause()
+            state = .paused
             queue.async {
                 self.session.stopRunning()
             }
@@ -157,7 +168,9 @@ extension Camera: CameraProtocol {
     }
 
     func end() async {
+        await pause()
         await stream.finish()
+        state = .ended
     }
 
     func takePhoto() async {
@@ -187,7 +200,7 @@ extension Camera: CameraProtocol {
         try await changeDevice(device: device)
     }
 
-    func switchPosition() async throws {
+    func changePosition() async throws {
         config.switchPosition()
         guard let device = config.getDefaultCamera() else {
             throw CameraError.cameraUnavailable

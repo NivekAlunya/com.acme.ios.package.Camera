@@ -1,0 +1,543 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "alert camera button ok" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "alert error camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An error occurred when using the camera"
+          }
+        }
+      }
+    },
+    "camera error cameraUnauthorized" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera access has been rejected.\\nPlease tap on the settings button below to activate the feature for the application."
+          }
+        }
+      }
+    },
+    "camera error cameraUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This camera is unavailable."
+          }
+        }
+      }
+    },
+    "camera error cannotAddInput" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system can add this input to the session of the camera."
+          }
+        }
+      }
+    },
+    "camera error cannotAddOutput" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system can add this output to the session of the camera."
+          }
+        }
+      }
+    },
+    "camera error cannotStartCamera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera can’t start!"
+          }
+        }
+      }
+    },
+    "camera error creationFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system can’t use the camera"
+          }
+        }
+      }
+    },
+    "camera error zoomUpdateFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system can’t apply this zoom level "
+          }
+        }
+      }
+    },
+    "codec appleProRes4444XQ" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "appleProRes4444XQ"
+          }
+        }
+      }
+    },
+    "codec h264" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "h264"
+          }
+        }
+      }
+    },
+    "codec hevc" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hevc"
+          }
+        }
+      }
+    },
+    "codec hevcWithAlpha" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hevcWithAlpha"
+          }
+        }
+      }
+    },
+    "codec jpeg" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "jpeg"
+          }
+        }
+      }
+    },
+    "codec JPEGXL" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "h264"
+          }
+        }
+      }
+    },
+    "codec proRes422" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "proRes422"
+          }
+        }
+      }
+    },
+    "codec proRes422HQ" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "proRes422HQ"
+          }
+        }
+      }
+    },
+    "codec proRes422LT" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "proRes422LT"
+          }
+        }
+      }
+    },
+    "codec proRes422Proxy" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "proRes422Proxy"
+          }
+        }
+      }
+    },
+    "codec proRes4444" : {
+      "comment" : "the codec used for the output",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "proRes4444"
+          }
+        }
+      }
+    },
+    "error unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An unknown error occurred.\""
+          }
+        }
+      }
+    },
+    "flash mode auto" : {
+      "comment" : "Flash is in automatic mode",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Automatique"
+          }
+        }
+      }
+    },
+    "flash mode off" : {
+      "comment" : "Flash is deactivated",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Désactivé"
+          }
+        }
+      }
+    },
+    "flash mode on" : {
+      "comment" : "Flash is activated",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Activé"
+          }
+        }
+      }
+    },
+    "flash mode unavailable" : {
+      "comment" : "Flash is unavailable",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Non disponible"
+          }
+        }
+      }
+    },
+    "option title camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld appareils"
+          }
+        }
+      }
+    },
+    "option title flash mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flash modes"
+          }
+        }
+      }
+    },
+    "option title format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Formats"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Formats"
+          }
+        }
+      }
+    },
+    "option title quality" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quality"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité"
+          }
+        }
+      }
+    },
+    "preset cif352x288" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cif352x288"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cif352x288"
+          }
+        }
+      }
+    },
+    "preset hd4K3840x2160" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hd4K3840x2160"
+          }
+        }
+      }
+    },
+    "preset hd1280x720" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hd1280x720"
+          }
+        }
+      }
+    },
+    "preset hd1920x1080" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hd1920x1080"
+          }
+        }
+      }
+    },
+    "preset high" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "high"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "haut"
+          }
+        }
+      }
+    },
+    "preset iFrame960x540" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iFrame960x540"
+          }
+        }
+      }
+    },
+    "preset iFrame1280x720" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iFrame1280x720"
+          }
+        }
+      }
+    },
+    "preset inputPriority" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "inputPriority"
+          }
+        }
+      }
+    },
+    "preset low" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "low"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bas"
+          }
+        }
+      }
+    },
+    "preset medium" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "medium"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "intermédiaire"
+          }
+        }
+      }
+    },
+    "preset photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "photo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "photo"
+          }
+        }
+      }
+    },
+    "preset vga640x480" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vga640x480"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}

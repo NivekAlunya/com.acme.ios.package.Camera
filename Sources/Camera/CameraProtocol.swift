@@ -18,12 +18,11 @@ protocol CameraProtocol: Actor {
     func changeCamera(device: AVCaptureDevice) async throws
     func start() async throws
     func resume() async
-    func stop() async
+    func pause() async
+    func end() async
     func takePhoto() async
     func changeCodec(_ codec: VideoCodecType)
     func changeFlashMode(_ flashMode: CameraFlashMode)
     func changeZoom(_ factor: Float) throws
-    func switchPosition() async throws
-    func end() async
-    func createStreams()
+    func changePosition() async throws
 }

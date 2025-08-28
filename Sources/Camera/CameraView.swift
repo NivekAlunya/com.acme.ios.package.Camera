@@ -8,24 +8,30 @@
 import AVFoundation
 import SwiftUI
 
+extension EnvironmentValues {
+    @Entry var bundle: Bundle = .module
+}
+
 public struct CameraView: View {
     @Environment(\.dismiss) var dismiss
     public typealias OnComplete = (AVCapturePhoto?, CameraConfiguration?) -> Void
-
     @StateObject var model: CameraModel
     @State var isSettingShown = false
     @State private var showErrorAlert = false
-
+    public let bundle: Bundle
     public let completion: OnComplete?
 
-    public init(camera: Camera = Camera(), completion: OnComplete?) {
+    public init(bundle: Bundle? = nil, camera: Camera = Camera(), completion: OnComplete?) {
+        let resolvedBundle = bundle ?? Bundle.module
         self.completion = completion
+        self.bundle = resolvedBundle
         _model = StateObject(wrappedValue: CameraModel(camera: camera))
     }
 
     init(model: CameraModel) {
         self.completion = nil
         _model = StateObject(wrappedValue: model)
+        self.bundle = .module
     }
 
     public var body: some View {
@@ -36,11 +42,11 @@ public struct CameraView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
         .safeAreaInset(edge: .bottom) {
-            FooterView(model: model, isSettingShown: $isSettingShown) {
-                model.handleExit()
-                dismiss()
-                completion?(nil, nil)
-            }
+                FooterView(model: model, isSettingShown: $isSettingShown) {
+                    model.handleExit()
+                    dismiss()
+                    completion?(nil, nil)
+                }
         }
         .task {
             await model.start()
@@ -58,9 +64,10 @@ public struct CameraView: View {
         }
         .alert(isPresented: $showErrorAlert) {
             Alert(
-                title: Text("Camera Error"),
-                message: Text(model.error?.localizedDescription ?? "An unknown error occurred."),
-                dismissButton: .default(Text("OK")) {
+                title: Text(CameraHelper.stringFrom("alert error camera", bundle: bundle)),
+                message: Text(CameraHelper.stringFrom(model.error?.stringKey ?? "error unknown", bundle: bundle))
+                    ,
+                dismissButton: .default(Text(CameraHelper.stringFrom("OK", bundle: bundle))) {
                     model.error = nil
                 }
             )
@@ -68,11 +75,13 @@ public struct CameraView: View {
         .sheet(isPresented: $isSettingShown) {
             SettingsView(model: model)
         }
+        .environment(\.bundle, bundle)
     }
 }
 
 extension CameraView {
     struct FooterView: View {
+        @Environment(\.openURL) private var openURL
         @ObservedObject var model: CameraModel
         @Binding var isSettingShown: Bool
         var onExit: () -> Void
@@ -101,6 +110,23 @@ extension CameraView {
                         .frame(maxWidth: .infinity)
                 case .accepted((let photo, let config)):
                     EmptyView()
+                case .unauthorized:
+                    Button {
+                        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+                            return
+                        }
+                        openURL(url)
+                    }
+                    label: {
+                        Image(systemName: "gear.badge.xmark")
+                    }
+                    .accessibilityLabel("Close Camera")
+                    .frame(maxWidth: .infinity)
+                    Button(action: onExit) {
+                        Image(systemName: "xmark.circle")
+                    }
+                    .accessibilityLabel("Close Camera")
+                    .frame(maxWidth: .infinity)
                 }
             }
             .font(.largeTitle)
@@ -184,45 +210,64 @@ extension CameraView {
     }
 
     struct SettingsView: View {
+        @Environment(\.bundle) var bundle
         @ObservedObject var model: CameraModel
-
+        @State private var tabSelection = 1
+        @State private var color = Color.blue
         var body: some View {
-            TabView {
+            TabView(selection: $tabSelection) {
                 PresetSettingsView(model: model)
                     .tabItem {
-                        Label("Quality", systemImage: "slider.horizontal.3")
+                        Label(CameraHelper.stringFrom("option title quality", bundle: bundle), systemImage: "slider.horizontal.3")
                     }
+                    .tag(1)
 
                 DeviceSettingsView(model: model)
                     .tabItem {
-                        Label("Cameras", systemImage: "camera.on.rectangle")
+                        Label(CameraHelper.stringFrom("option title camera", bundle: bundle), systemImage: "camera.on.rectangle")
+                            .accentColor(Color.green)
                     }
+                    .tag(2)
 
                 FormatSettingsView(model: model)
                     .tabItem {
-                        Label("Format", systemImage: "photo.badge.arrow.down")
+                        Label(CameraHelper.stringFrom("option title format", bundle: bundle), systemImage: "photo.badge.arrow.down")
                     }
-
+                    .tag(3)
                 FlashModeSettingsView(model: model)
                     .tabItem {
-                        Label("Format", systemImage: "bolt.fill")
+                        Label(CameraHelper.stringFrom("option title flash mode", bundle: bundle), systemImage: "bolt.fill")
                     }
+                    .tag(4)
             }
             .presentationDetents([.medium, .large])
-            .presentationBackground(.clear)
+            .presentationBackground(.thinMaterial)
+            .accentColor(color)
+            .tint(color)
+            .onChange(of: tabSelection) {
+                color = switch tabSelection {
+                case 1: .blue
+                case 2: .green
+                case 3: .red
+                case 4: .yellow
+                default:
+                        .black
+                }
+            }
         }
     }
 
     struct PresetSettingsView: View {
+        @Environment(\.bundle) var bundle
         @ObservedObject var model: CameraModel
 
         var body: some View {
             List {
-                Section(header: Text("Output Quality").bold()) {
+                Section(header: Text(CameraHelper.stringFrom("option title quality", bundle: bundle)).bold()) {
                     ForEach(model.presets, id: \.self) { preset in
                         Button(action: { model.selectPreset(preset) }) {
                             HStack {
-                                Text(preset.name.uppercased())
+                                Text(CameraHelper.stringFrom(preset.stringKey, bundle: bundle))
                                 Spacer()
                                 if preset == model.selectedPreset {
                                     Image(systemName: "checkmark")
@@ -231,17 +276,18 @@ extension CameraView {
                         }
                     }
                 }
-                .listStyle(.inset)
-                .listRowSeparator(.hidden)
             }
+            .applySettingListStyle()
+
         }
     }
 
     struct DeviceSettingsView: View {
+        @Environment(\.bundle) var bundle
         @ObservedObject var model: CameraModel
         var body: some View {
             List {
-                Section(header: Text("Devices").bold()) {
+                Section(header: Text(CameraHelper.stringFrom("option title camera", bundle: bundle)).bold()) {
 
                     VStack {
                         Slider(
@@ -255,10 +301,10 @@ extension CameraView {
                         ) {
                             Text("")
                         }
+                        
                         Text("zoom \(model.zoom, specifier: "%.1f")x")
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
-
                     }
 
                     ForEach(model.devices, id: \.uniqueID) { device in
@@ -274,19 +320,22 @@ extension CameraView {
                     }
                 }
             }
+            .applySettingListStyle()
+
         }
     }
 
     struct FormatSettingsView: View {
+        @Environment(\.bundle) var bundle
         @ObservedObject var model: CameraModel
 
         var body: some View {
             List {
-                Section(header: Text("Formats").bold()) {
+                Section(header: Text(CameraHelper.stringFrom("option title format", bundle: bundle)).bold()) {
                     ForEach(model.formats, id: \.self) { format in
                         Button(action: { model.selectFormat(format) }) {
                             HStack {
-                                Text(format.name.uppercased())
+                                Text(CameraHelper.stringFrom(format.stringKey, bundle: bundle))
                                 Spacer()
                                 if format == model.selectedFormat {
                                     Image(systemName: "checkmark")
@@ -296,21 +345,23 @@ extension CameraView {
                     }
                 }
             }
+            .applySettingListStyle()
         }
     }
 
     struct FlashModeSettingsView: View {
+        @Environment(\.bundle) var bundle
         @ObservedObject var model: CameraModel
 
         var body: some View {
             List {
-                Section(header: Text("Flash Modes").bold()) {
+                Section(header: Text(CameraHelper.stringFrom("option title flash mode", bundle: bundle)).bold()) {
                     ForEach(model.flashModes, id: \.self) { flashMode in
                         Button(action: { model.selectFlashMode(flashMode) }) {
                             HStack {
-                                Text(flashMode.name.uppercased())
+                                Text(CameraHelper.stringFrom(flashMode.stringKey, bundle: bundle))
                                 Spacer()
-                                if flashMode == model.selectedFlashMode {
+                                    if flashMode == model.selectedFlashMode {
                                     Image(systemName: "checkmark")
                                 }
                             }
@@ -318,6 +369,8 @@ extension CameraView {
                     }
                 }
             }
+            .applySettingListStyle()
+
         }
     }
 
@@ -346,3 +399,4 @@ extension CameraView {
     let cameraModel = CameraModel(camera: mockCamera)
     return CameraView(model: cameraModel)
 }
+

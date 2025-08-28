@@ -17,10 +17,6 @@ actor MockCamera: CameraProtocol {
 
     }
 
-    func changeFlashMode(_ flashMode: CameraFlashMode) {
-
-    }
-
     func createStreams() {
         stream = CameraStream()
     }
@@ -66,7 +62,7 @@ actor MockCamera: CameraProtocol {
         // No-op for mock
     }
 
-    func stop() async {
+    func pause() async {
         // No-op for mock
     }
 
@@ -84,7 +80,7 @@ actor MockCamera: CameraProtocol {
         config.videoCodecType = codec
     }
 
-    func switchPosition() async throws {
+    func changePosition() async throws {
         config.switchPosition()
     }
 

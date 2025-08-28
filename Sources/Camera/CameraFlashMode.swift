@@ -19,15 +19,17 @@ enum CameraFlashMode: CaseIterable {
         }
     }
 
-    var name: String {
+    var stringKey: String {
         return switch self {
-        case .on: "on"
-        case .off: "off"
-        case .auto: "auto"
-        case .unavailable: "unavailable"
+        case .on: "flash mode on"
+        case .off: "flash mode off"
+        case .auto: "flash mode auto"
+        case .unavailable: "flash mode unavailable"
         }
     }
 
+    
+    
     var modes: [CameraFlashMode] {
 
         return self == .unavailable
