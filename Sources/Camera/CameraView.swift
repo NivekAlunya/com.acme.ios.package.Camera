@@ -64,9 +64,10 @@ public struct CameraView: View {
         }
         .alert(isPresented: $showErrorAlert) {
             Alert(
-                title: Text("Camera Error"),
-                message: Text(model.error?.localizedDescription ?? "An unknown error occurred."),
-                dismissButton: .default(Text("OK")) {
+                title: Text(CameraHelper.stringFrom("alert error camera", bundle: bundle)),
+                message: Text(CameraHelper.stringFrom(model.error?.stringKey ?? "error unknown", bundle: bundle))
+                    ,
+                dismissButton: .default(Text(CameraHelper.stringFrom("OK", bundle: bundle))) {
                     model.error = nil
                 }
             )

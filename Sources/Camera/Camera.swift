@@ -11,15 +11,7 @@
 import Foundation
 import UIKit
 
-enum CameraError: Error {
-    case cameraUnavailable
-    case cameraUnauthorized
-    case cannotAddInput
-    case cannotAddOutput
-    case creationFailed
-    case zoomUpdateFailed
-    case cannotStartCamera
-}
+
 
 enum CameraState: Error {
     case needSetup

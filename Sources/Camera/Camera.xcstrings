@@ -1,6 +1,105 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "alert camera button ok" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "alert error camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An error occurred when using the camera"
+          }
+        }
+      }
+    },
+    "camera error cameraUnauthorized" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera access has been rejected.\\nPlease tap on the settings button below to activate the feature for the application."
+          }
+        }
+      }
+    },
+    "camera error cameraUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This camera is unavailable."
+          }
+        }
+      }
+    },
+    "camera error cannotAddInput" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system can add this input to the session of the camera."
+          }
+        }
+      }
+    },
+    "camera error cannotAddOutput" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system can add this output to the session of the camera."
+          }
+        }
+      }
+    },
+    "camera error cannotStartCamera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera can’t start!"
+          }
+        }
+      }
+    },
+    "camera error creationFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system can’t use the camera"
+          }
+        }
+      }
+    },
+    "camera error zoomUpdateFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system can’t apply this zoom level "
+          }
+        }
+      }
+    },
     "codec appleProRes4444XQ" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13,17 +112,19 @@
       }
     },
     "codec h264" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "codec h264"
+            "value" : "h264"
           }
         }
       }
     },
     "codec hevc" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -35,6 +136,7 @@
       }
     },
     "codec hevcWithAlpha" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -46,6 +148,7 @@
       }
     },
     "codec jpeg" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -57,6 +160,7 @@
       }
     },
     "codec JPEGXL" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -68,6 +172,7 @@
       }
     },
     "codec proRes422" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -79,6 +184,7 @@
       }
     },
     "codec proRes422HQ" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -90,6 +196,7 @@
       }
     },
     "codec proRes422LT" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -101,6 +208,7 @@
       }
     },
     "codec proRes422Proxy" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -112,12 +220,24 @@
       }
     },
     "codec proRes4444" : {
+      "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "proRes4444"
+          }
+        }
+      }
+    },
+    "error unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An unknown error occurred.\""
           }
         }
       }
@@ -200,7 +320,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cameras"
+            "value" : "Camera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld appareils"
           }
         }
       }
@@ -224,6 +350,12 @@
             "state" : "translated",
             "value" : "Formats"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Formats"
+          }
         }
       }
     },
@@ -235,6 +367,12 @@
             "state" : "translated",
             "value" : "Quality"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité"
+          }
         }
       }
     },
@@ -242,6 +380,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cif352x288"
+          }
+        },
+        "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "cif352x288"
@@ -290,6 +434,12 @@
             "state" : "translated",
             "value" : "high"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "haut"
+          }
         }
       }
     },
@@ -334,6 +484,12 @@
             "state" : "translated",
             "value" : "low"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bas"
+          }
         }
       }
     },
@@ -345,6 +501,12 @@
             "state" : "translated",
             "value" : "medium"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "intermédiaire"
+          }
         }
       }
     },
@@ -352,6 +514,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "photo"
+          }
+        },
+        "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "photo"
