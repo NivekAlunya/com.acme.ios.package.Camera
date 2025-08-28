@@ -13,7 +13,7 @@ actor MockCamera: CameraProtocol {
     var previewImages: [CIImage]
     var photoImages: [CIImage]
 
-    func changeZoom(_ factor: Float) {
+    func changeZoom(_ factor: CGFloat) {
 
     }
 

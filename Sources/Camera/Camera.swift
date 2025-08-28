@@ -36,6 +36,7 @@ public actor Camera: NSObject {
     public override init() {
         self.config = CameraConfiguration()
         super.init()
+        createStreams()
         Task { @MainActor in
             UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         }
@@ -93,12 +94,12 @@ public actor Camera: NSObject {
 }
 
 extension Camera: CameraProtocol {
-    func changeZoom(_ factor: Float) throws {
+    func changeZoom(_ factor: CGFloat) throws {
         guard let device = config.deviceInput?.device else { return }
         do {
             try device.lockForConfiguration()
             device.videoZoomFactor = max(
-                1.0, min(CGFloat(factor), device.activeFormat.videoMaxZoomFactor))
+                1.0, min(factor, device.activeFormat.videoMaxZoomFactor))
             device.unlockForConfiguration()
             config.zoom = Float(device.videoZoomFactor)
 
@@ -115,12 +116,9 @@ extension Camera: CameraProtocol {
 
         queue.suspend()
 
-        guard !self.session.isRunning
-                
-        else {
+        guard !self.session.isRunning else {
             throw CameraError.cannotStartCamera
         }
-
         
         let authorized = await CameraHelper.checkAuthorization()
         guard authorized else {
@@ -128,19 +126,16 @@ extension Camera: CameraProtocol {
             throw CameraError.cameraUnauthorized
         }
         
-        
         switch state {
-        case .needSetup:
+        case .needSetup, .ended:
             guard let device = config.getDefaultCamera() else {
                 throw CameraError.cameraUnavailable
             }
             try setup(device: device)
-            await createStreams()
-        case .ended:
-            await createStreams()
         default:
             break
         }
+
         await stream.resume()
         state = .started
         queue.async {
@@ -216,7 +211,7 @@ extension Camera: CameraProtocol {
         config.flashMode = flashMode
     }
 
-    func createStreams() {
+    private func createStreams() {
         stream = CameraStream()
     }
 }

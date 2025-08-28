@@ -19,12 +19,15 @@ public class CameraModel: ObservableObject {
     enum State: Equatable {
         static func == (lhs: CameraModel.State, rhs: CameraModel.State) -> Bool {
             switch (lhs, rhs) {
-            case (.accepted(let a), .accepted(let b)) where a.photo == b.photo: return true
-               case (.previewing, .previewing)
-                , (.processing, .processing)
-                , (.validating, .validating)
-                , (.unauthorized, .unauthorized) : return true
-               default: return false
+            case (.accepted(let a), .accepted(let b)):
+                return a.photo == b.photo && a.config == b.config
+            case (.previewing, .previewing),
+                 (.processing, .processing),
+                 (.validating, .validating),
+                 (.unauthorized, .unauthorized):
+                return true
+            default:
+                return false
             }
         }
         
@@ -135,7 +138,7 @@ public class CameraModel: ObservableObject {
             selectedDevice = device
             do {
                 try await camera.changeCamera(device: device)
-                zoom = await Double(camera.config.zoom)
+                await loadSettings()
             } catch (let error as CameraError) {
                 self.error = error
             } catch {
@@ -161,7 +164,7 @@ public class CameraModel: ObservableObject {
     func selectZoom(_ zoom: Double) {
         Task {
             do {
-                try await camera.changeZoom(Float(zoom))
+                try await camera.changeZoom(zoom)
                 self.zoom = await Double(camera.config.zoom)
             } catch (let error as CameraError) {
                 self.error = error
