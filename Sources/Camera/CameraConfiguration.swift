@@ -7,7 +7,7 @@
 
 import AVFoundation
 
-public struct CameraConfiguration {
+public struct CameraConfiguration: Hashable {
     private(set) var deviceInput: AVCaptureDeviceInput?
     var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
     var flashMode: CameraFlashMode = .unavailable

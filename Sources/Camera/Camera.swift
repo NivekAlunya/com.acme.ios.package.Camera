@@ -36,7 +36,6 @@ public actor Camera: NSObject {
     public override init() {
         self.config = CameraConfiguration()
         super.init()
-        createStreams()
         Task { @MainActor in
             UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         }
@@ -127,11 +126,14 @@ extension Camera: CameraProtocol {
         }
         
         switch state {
-        case .needSetup, .ended:
+        case .needSetup:
             guard let device = config.getDefaultCamera() else {
                 throw CameraError.cameraUnavailable
             }
             try setup(device: device)
+            await createStreams()
+        case .ended:
+            await createStreams()
         default:
             break
         }

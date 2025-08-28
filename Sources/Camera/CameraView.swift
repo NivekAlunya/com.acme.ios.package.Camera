@@ -290,12 +290,14 @@ extension CameraView {
                 Section(header: Text(CameraHelper.stringFrom("option title camera", bundle: bundle)).bold()) {
 
                     VStack {
-                        Slider(value: $model.zoom, in: model.zoomRange, step: 0.1) {
+                        Slider(value: Binding(
+                            get: {
+                                model.zoom
+                            },
+                            set: { value in
+                                model.selectZoom(value)
+                            }), in: model.zoomRange, step: 1.0) {
                             Text("")
-                        } onEditingChanged: { editing in
-                            if !editing {
-                                model.selectZoom(model.zoom)
-                            }
                         }
                         
                         Text("zoom \(model.zoom, specifier: "%.1f")x")
