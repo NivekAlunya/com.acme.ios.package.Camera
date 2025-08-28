@@ -21,3 +21,18 @@ public struct FitToParent: ViewModifier {
         }
     }
 }
+
+extension List {
+    public func applySettingListStyle() -> some View {
+        modifier(SettingListStyle())
+    }
+}
+
+public struct SettingListStyle: ViewModifier {
+    public func body(content: Content) -> some View {
+            content
+                .listRowSeparator(.hidden)
+                .background(.tint)
+                .scrollContentBackground(.hidden)
+    }
+}

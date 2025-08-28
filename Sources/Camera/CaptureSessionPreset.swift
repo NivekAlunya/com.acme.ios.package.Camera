@@ -21,7 +21,7 @@ public enum CaptureSessionPreset: CaseIterable {
     case inputPriority
     case vga640x480
 
-    var name: String {
+    var stringKey: String {
         return switch self {
         case .photo : "photo"
         case .low : "low"

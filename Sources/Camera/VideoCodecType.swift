@@ -38,19 +38,19 @@ public enum VideoCodecType: CaseIterable, Sendable {
         }
     }
     
-    var name: String {
+    var stringKey: String {
         return switch self {
-        case .JPEGXL : "JPEGXL"
-        case .appleProRes4444XQ : "appleProRes4444XQ"
-        case .h264 : "h264"
-        case .hevc : "hevc"
-        case .hevcWithAlpha : "hevcWithAlpha"
-        case .jpeg : "jpeg"
-        case .proRes422 : "proRes422"
-        case .proRes422HQ : "proRes422HQ"
-        case .proRes422LT : "proRes422LT"
-        case .proRes422Proxy : "proRes422Proxy"
-        case .proRes4444 : "proRes4444"
+        case .JPEGXL : "codec JPEGXL"
+        case .appleProRes4444XQ : "codec appleProRes4444XQ"
+        case .h264 : "codec h264"
+        case .hevc : "codec hevc"
+        case .hevcWithAlpha : "codec hevcWithAlpha"
+        case .jpeg : "codec jpeg"
+        case .proRes422 : "codec proRes422"
+        case .proRes422HQ : "codec proRes422HQ"
+        case .proRes422LT : "codec proRes422LT"
+        case .proRes422Proxy : "codec proRes422Proxy"
+        case .proRes4444 : "codec proRes4444"
         }
     }
     

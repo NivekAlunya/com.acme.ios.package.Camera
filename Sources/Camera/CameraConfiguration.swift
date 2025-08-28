@@ -19,6 +19,7 @@ public struct CameraConfiguration {
     private(set) var listCaptureDevice = [AVCaptureDevice]()
     private(set) var listSupportedFormat = [VideoCodecType]()
     private(set) var listFlashMode = [CameraFlashMode]()
+    private(set) var listPreset = [CaptureSessionPreset]()
     private(set) var zoomRange = 1.0...1.0
     private(set) var photoOutput: AVCapturePhotoOutput
     private let videoOutput = AVCaptureVideoDataOutput()
@@ -100,8 +101,20 @@ public struct CameraConfiguration {
         position = position == .back ? .front : .back
         refreshAvailableDevices()
     }
+    
+    mutating func setup(device: AVCaptureDevice, session: AVCaptureSession, delegate: AVCaptureVideoDataOutputSampleBufferDelegate) throws {
+        try self.setupCaptureDevice(device: device, forSession: session)
+        try self.setupCaptureDeviceOutput(forSession: session, delegate: delegate)
 
-    mutating func setupCaptureDeviceOutput(
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+        
+        listPreset = CaptureSessionPreset.allCases.filter({ session.canSetSessionPreset($0.avPreset)})
+        
+        session.sessionPreset = listPreset.first?.avPreset ?? .inputPriority
+    }
+
+    private mutating func setupCaptureDeviceOutput(
         forSession session: AVCaptureSession, delegate: AVCaptureVideoDataOutputSampleBufferDelegate
     ) throws {
         guard !isOutputSetup else {
@@ -125,7 +138,7 @@ public struct CameraConfiguration {
         isOutputSetup = true
     }
 
-    mutating func setupCaptureDevice(device: AVCaptureDevice, forSession session: AVCaptureSession)
+    private mutating func setupCaptureDevice(device: AVCaptureDevice, forSession session: AVCaptureSession)
         throws
     {
 
