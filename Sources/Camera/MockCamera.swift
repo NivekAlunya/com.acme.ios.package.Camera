@@ -3,35 +3,39 @@
 //  Camera
 //
 //  Created by Kevin LAUNAY.
+//
 
 @preconcurrency import AVFoundation
 import CoreImage
 import Foundation
 
-// MARK: - MockCameraActor
+/// A mock implementation of the `CameraProtocol` for testing and SwiftUI previews.
+/// This actor simulates the behavior of the real camera, allowing for UI development and testing without a physical device.
 actor MockCamera: CameraProtocol {
+
+    /// An array of `CIImage`s to be used for the preview stream.
     var previewImages: [CIImage]
+
+    /// An array of `CIImage`s to be used for the photo stream.
     var photoImages: [CIImage]
 
-    func changeZoom(_ factor: CGFloat) {
-
-    }
-
-    func createStreams() {
-        stream = CameraStream()
-    }
-
-    func setConfig(_ config: CameraConfiguration) throws {
-        self.config = config
-    }
-
-    var photo: AVCapturePhoto?
-
-    var stream: any CameraStreamProtocol
+    /// The mock's current configuration.
     var config: CameraConfiguration
 
+    /// The mock's stream object.
+    var stream: any CameraStreamProtocol
+
+    /// A placeholder for a captured photo.
+    var photo: AVCapturePhoto?
+
+    /// Initializes a `MockCamera`.
+    /// - Parameters:
+    ///   - configuration: The initial camera configuration.
+    ///   - previewImages: A sequence of images to emit as the preview stream.
+    ///   - photoImages: A sequence of images to emit as the photo stream when `takePhoto()` is called.
     init(
-        configuration: CameraConfiguration = CameraConfiguration(), previewImages: [CIImage] = [],
+        configuration: CameraConfiguration = CameraConfiguration(),
+        previewImages: [CIImage] = [],
         photoImages: [CIImage] = []
     ) {
         self.config = configuration
@@ -40,8 +44,10 @@ actor MockCamera: CameraProtocol {
         self.photoImages = photoImages
     }
 
-    private func samplePreviewImage() -> CIImage {
-        CIImage(color: .gray).cropped(to: CGRect(x: 0, y: 0, width: 320, height: 480))
+    // MARK: - CameraProtocol Conformance
+
+    func changeZoom(_ factor: CGFloat) {
+        // No-op for mock
     }
 
     func changePreset(preset: CaptureSessionPreset) {
@@ -52,6 +58,7 @@ actor MockCamera: CameraProtocol {
         // No-op for mock
     }
 
+    /// Simulates starting the camera by emitting the `previewImages`.
     func start() async throws {
         for image in previewImages {
             await stream.emitPreview(image)
@@ -66,6 +73,7 @@ actor MockCamera: CameraProtocol {
         // No-op for mock
     }
 
+    /// Simulates taking a photo by emitting the `photoImages`.
     func takePhoto() async {
         for image in photoImages {
             await stream.emitPhoto(image)

@@ -8,33 +8,41 @@
 import CoreImage
 @preconcurrency import AVFoundation
 
+/// An actor that manages the asynchronous streams of preview frames and captured photos from the camera.
 actor CameraStream: CameraStreamProtocol {
+
+    /// A flag indicating whether the preview stream is paused.
     private(set) var isPreviewPaused = false
-    /// Continuation used to yield preview frames into the async stream.
+
+    /// The continuation for the preview stream, used to yield new frames.
     private var previewContinuation: AsyncStream<CIImage>.Continuation?
-    private var skipFirstframe = 2 // a bug in the orientation fo the first frames occured so skipp some frame
-    /// Public async stream of preview CIImages.
+
+    /// A counter to skip the first few frames, which sometimes have orientation issues.
+    private var skipFirstFrame = 2
+
+    /// A lazy-initialized asynchronous stream of `CIImage` for camera previews.
     private(set) lazy var previewStream: AsyncStream<CIImage> = {
         AsyncStream { continuation in
-            // Store continuation to yield preview frames later.
             self.previewContinuation = continuation
         }
     }()
-    /// Continuation used to yield captured photos into the async stream.
+
+    /// The continuation for the photo stream, used to yield captured photos.
     private var photoContinuation: AsyncStream<CIImage>.Continuation?
     
-    /// Public async stream of captured photos.
+    /// A lazy-initialized asynchronous stream of `CIImage` for captured photos.
     private(set) lazy var photoStream: AsyncStream<CIImage> = {
         AsyncStream { continuation in
-            // Store continuation to yield photos later.
             self.photoContinuation = continuation
         }
     }()
 
-    /// Emits a CIImage preview frame to the preview stream if not paused or stopped.
+    /// Emits a new preview frame to the `previewStream`.
+    /// This method skips the first couple of frames to avoid potential orientation bugs.
+    /// - Parameter ciImage: The `CIImage` to emit.
     func emitPreview(_ ciImage: CIImage) {
-        guard skipFirstframe == 0 else {
-            skipFirstframe -= 1
+        guard skipFirstFrame == 0 else {
+            skipFirstFrame -= 1
             return
         }
         if !isPreviewPaused {
@@ -42,18 +50,23 @@ actor CameraStream: CameraStreamProtocol {
         }
     }
     
-    /// Emits a captured photo to the photo stream if not paused or stopped.
+    /// Emits a new captured photo to the `photoStream`.
+    /// - Parameter ciImage: The `CIImage` to emit.
     func emitPhoto(_ ciImage: CIImage) {
         photoContinuation?.yield(ciImage)
     }
     
+    /// Pauses the preview stream.
     func pause() {
         isPreviewPaused = true
     }
 
+    /// Resumes the preview stream.
     func resume() {
         isPreviewPaused = false
     }
+
+    /// Finishes both the photo and preview streams, terminating them.
     func finish() {
         photoContinuation?.finish()
         previewContinuation?.finish()
