@@ -21,7 +21,8 @@ public class CameraModel: ObservableObject {
             switch (lhs, rhs) {
             case (.accepted(let a), .accepted(let b)):
                 return a.photo == b.photo && a.config == b.config
-            case (.previewing, .previewing),
+            case (.loading, .loading),
+                 (.previewing, .previewing),
                  (.processing, .processing),
                  (.validating, .validating),
                  (.unauthorized, .unauthorized):
@@ -31,12 +32,12 @@ public class CameraModel: ObservableObject {
             }
         }
         
-        case previewing, processing, validating, unauthorized
+        case previewing, processing, validating, unauthorized, loading
         case accepted(Capture)
     }
     
     // MARK: - Published Properties
-    @Published var state = State.previewing
+    @Published var state = State.loading
     @Published var error: CameraError?
     @Published var preview: Image?
     @Published var capture: Capture?
@@ -75,7 +76,6 @@ public class CameraModel: ObservableObject {
             previewTask = Task { await listenCameraPreviews() }
             photoTask = Task { await listenPhotoCapture() }
             await loadSettings()
-            state = .previewing
         } catch (let error as CameraError) {
             if error == .cameraUnauthorized {
                 state = .unauthorized
@@ -200,6 +200,9 @@ public class CameraModel: ObservableObject {
     
     private func listenCameraPreviews() async {
         for await image in await camera.stream.previewStream {
+            if state == .loading {
+                state = .previewing
+            }
             await setPreview(image: image)
         }
     }

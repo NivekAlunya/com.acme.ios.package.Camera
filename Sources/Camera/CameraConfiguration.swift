@@ -59,10 +59,11 @@ public struct CameraConfiguration: Hashable {
         if let device = deviceInput?.device {
             let mx = min(maxZoom, device.maxAvailableVideoZoomFactor)
             zoomRange = Double(device.minAvailableVideoZoomFactor)...(Double(mx))
+            self.rotationCoordinator = AVCaptureDevice.RotationCoordinator(
+                device: device, previewLayer: nil)
         } else {
             zoomRange = 1...1
         }
-        buildRotationCoordinator()
     }
 
     mutating func setupOutput() {
@@ -89,14 +90,6 @@ public struct CameraConfiguration: Hashable {
         return photoSettings
     }
 
-    private mutating func buildRotationCoordinator() {
-        guard let deviceInput else {
-            return
-        }
-        self.rotationCoordinator = AVCaptureDevice.RotationCoordinator(
-            device: deviceInput.device, previewLayer: nil)
-    }
-
     mutating func switchPosition() {
         position = position == .back ? .front : .back
         refreshAvailableDevices()
@@ -110,8 +103,9 @@ public struct CameraConfiguration: Hashable {
         defer { session.commitConfiguration() }
         
         listPreset = CaptureSessionPreset.allCases.filter({ session.canSetSessionPreset($0.avPreset)})
-        
-        session.sessionPreset = listPreset.first?.avPreset ?? .inputPriority
+        //search for actual preset in list
+        preset = listPreset.first(where: { $0 == preset }) ?? listPreset.first ?? .inputPriority
+        session.sessionPreset = preset.avPreset
     }
 
     private mutating func setupCaptureDeviceOutput(

@@ -36,7 +36,11 @@ public struct CameraView: View {
 
     public var body: some View {
         ZStack {
-            ImagePreview(image: model.preview)
+            if (model.state == .loading) {
+                ProcessingView().font(.largeTitle.bold())
+            } else {
+                ImagePreview(image: model.preview)
+            }
         }
         .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -110,6 +114,9 @@ extension CameraView {
                 case .unauthorized:
                     OpenSettingsButton()
                     .frame(maxWidth: .infinity)
+                    CloseButton(onExit: onExit)
+                        .frame(maxWidth: .infinity)
+                case .loading:
                     CloseButton(onExit: onExit)
                         .frame(maxWidth: .infinity)
                 }
@@ -240,36 +247,36 @@ extension CameraView {
                     .tabItem {
                         Label(CameraHelper.stringFrom("option_title_quality", bundle: bundle), systemImage: "slider.horizontal.3")
                     }
-                    .tag(0)
+                    .tag(1)
 
                 DeviceSettingsView(model: model)
                     .tabItem {
                         Label(CameraHelper.stringFrom("option_title_camera", bundle: bundle), systemImage: "camera.on.rectangle")
                             .accentColor(Color.green)
                     }
-                    .tag(1)
+                    .tag(2)
 
                 FormatSettingsView(model: model)
                     .tabItem {
                         Label(CameraHelper.stringFrom("option_title_format", bundle: bundle), systemImage: "photo.badge.arrow.down")
                     }
-                    .tag(2)
+                    .tag(3)
                 FlashModeSettingsView(model: model)
                     .tabItem {
                         Label(CameraHelper.stringFrom("option_title_flash_mode", bundle: bundle), systemImage: "bolt.fill")
                     }
-                    .tag(3)
+                    .tag(4)
             }
             .presentationDetents([.medium, .large])
             .presentationBackground(.thinMaterial)
             .accentColor(color)
-            .tint(color)
+//            .tint(color)
             .onChange(of: tabSelection) {
                 color = switch tabSelection {
-                case 0: .blue
-                case 1: .green
-                case 2: .red
-                case 3: .yellow
+                case 1: .blue
+                case 2: .green
+                case 3: .red
+                case 4: .yellow
                 default:
                         .black
                 }
@@ -285,14 +292,18 @@ extension CameraView {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_quality", bundle: bundle)).bold()) {
                     ForEach(model.presets, id: \.self) { preset in
+                        let selected = preset == model.selectedPreset
                         Button(action: { model.selectPreset(preset) }) {
                             HStack {
                                 Text(CameraHelper.stringFrom(preset.stringKey, bundle: bundle))
+                                    .fontWeight(selected ? .bold : .regular)
                                 Spacer()
-                                if preset == model.selectedPreset {
+                                if selected {
                                     Image(systemName: "checkmark")
                                 }
                             }
+                            .fontWeight(selected ? .bold : .regular)
+
                         }
                     }
                 }
@@ -319,22 +330,15 @@ extension CameraView {
                             }), in: model.zoomRange, step: 1.0) {
                             Text("")
                         }
-                        
                         Text("zoom \(model.zoom, specifier: "%.1f")x")
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
-                    }
+                    }.listRowSeparator(.hidden)
 
                     ForEach(model.devices, id: \.uniqueID) { device in
-                        Button(action: { model.selectDevice(device) }) {
-                            HStack {
-                                Text(device.localizedName.uppercased())
-                                Spacer()
-                                if device.uniqueID == model.selectedDevice?.uniqueID {
-                                    Image(systemName: "checkmark")
-                                }
+                        ListRow(text: Text(device.localizedName.uppercased()) , selected: device.uniqueID == model.selectedDevice?.uniqueID) {
+                            model.selectDevice(device)
                             }
-                        }
                     }
                 }
             }
@@ -351,14 +355,8 @@ extension CameraView {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_format", bundle: bundle)).bold()) {
                     ForEach(model.formats, id: \.self) { format in
-                        Button(action: { model.selectFormat(format) }) {
-                            HStack {
-                                Text(CameraHelper.stringFrom(format.stringKey, bundle: bundle))
-                                Spacer()
-                                if format == model.selectedFormat {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
+                        ListRow(text: Text(CameraHelper.stringFrom(format.stringKey, bundle: bundle)) , selected: format == model.selectedFormat) {
+                            model.selectFormat(format)
                         }
                     }
                 }
@@ -375,20 +373,34 @@ extension CameraView {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_flash_mode", bundle: bundle)).bold()) {
                     ForEach(model.flashModes, id: \.self) { flashMode in
-                        Button(action: { model.selectFlashMode(flashMode) }) {
-                            HStack {
-                                Text(CameraHelper.stringFrom(flashMode.stringKey, bundle: bundle))
-                                Spacer()
-                                    if flashMode == model.selectedFlashMode {
-                                    Image(systemName: "checkmark")
-                                }
+                        ListRow(text: Text(CameraHelper.stringFrom(flashMode.stringKey, bundle: bundle)) , selected: flashMode == model.selectedFlashMode) {
+                                model.selectFlashMode(flashMode)
                             }
-                        }
                     }
                 }
             }
             .applySettingListStyle()
 
+        }
+    }
+    
+    struct ListRow: View {
+        @Environment(\.bundle) var bundle
+        var text: Text
+        var selected = false
+        var action: () -> ()
+        var body: some View {
+            Button(action: action ) {
+                HStack {
+                    text
+                    Spacer()
+                    if selected {
+                        Image(systemName: "checkmark")
+                    }
+                }
+                .fontWeight(selected ? .bold : .regular)
+            }
+            .listRowSeparator(.hidden)
         }
     }
 

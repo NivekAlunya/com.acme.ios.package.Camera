@@ -31,8 +31,8 @@ extension List {
 public struct SettingListStyle: ViewModifier {
     public func body(content: Content) -> some View {
             content
-                .listRowSeparator(.hidden)
-                .background(.tint)
+                .foregroundStyle(.tint)
+                .background(.ultraThickMaterial)
                 .scrollContentBackground(.hidden)
     }
 }

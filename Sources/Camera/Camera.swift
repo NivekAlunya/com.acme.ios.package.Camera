@@ -11,8 +11,6 @@
 import Foundation
 import UIKit
 
-
-
 enum CameraState: Error {
     case needSetup
     case unauthorized
@@ -20,7 +18,6 @@ enum CameraState: Error {
     case paused
     case ended
 }
-
 
 public actor Camera: NSObject {
 
@@ -30,21 +27,15 @@ public actor Camera: NSObject {
     private(set) var photo: AVCapturePhoto?
     private let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
-    private let queue = DispatchQueue(label: "CameraSessionQueue")
     private var state = CameraState.needSetup
 
     public override init() {
         self.config = CameraConfiguration()
         super.init()
-        Task { @MainActor in
-            UIDevice.current.beginGeneratingDeviceOrientationNotifications()
-        }
     }
 
     deinit {
-        Task { @MainActor in
-            UIDevice.current.endGeneratingDeviceOrientationNotifications()
-        }
+
     }
 
     private func removeDevice() {
@@ -72,12 +63,6 @@ public actor Camera: NSObject {
             self.session.stopRunning()
         }
         try config.setup(device: device, session: session, delegate: self)
-    }
-
-    func getAVCaptureVideoOrientation() async -> AVCaptureVideoOrientation? {
-        await Task { @MainActor in
-            CameraHelper.videoOrientationFor(UIDevice.current.orientation)
-        }.value
     }
 
     func processPhoto(_ photo: AVCapturePhoto) async {
@@ -109,11 +94,6 @@ extension Camera: CameraProtocol {
 
     // MARK - CameraProtocol
     func start() async throws {
-        defer {
-            queue.resume()
-        }
-
-        queue.suspend()
 
         guard !self.session.isRunning else {
             throw CameraError.cannotStartCamera
@@ -140,17 +120,13 @@ extension Camera: CameraProtocol {
 
         await stream.resume()
         state = .started
-        queue.async {
-            self.session.startRunning()
-        }
+        self.session.startRunning()
     }
 
     func resume() async {
         await stream.resume()
         state = .started
-        queue.async {
-            self.session.startRunning()
-        }
+        self.session.startRunning()
     }
 
     /// Stops the capture session safely and pauses preview emission.
@@ -158,9 +134,7 @@ extension Camera: CameraProtocol {
         if session.isRunning {
             await stream.pause()
             state = .paused
-            queue.async {
-                self.session.stopRunning()
-            }
+            self.session.stopRunning()
         }
     }
 
@@ -169,16 +143,11 @@ extension Camera: CameraProtocol {
         await stream.finish()
         state = .ended
     }
-
+    
     func takePhoto() async {
-        let videoOrientation = await getAVCaptureVideoOrientation()
-        if let photoOutputVideoConnection = self.config.photoOutput.connection(with: .video) {
-            // Set video orientation for the photo output connection if supported.
-            if photoOutputVideoConnection.isVideoRotationAngleSupported(90.0),
-                let videoOrientation = videoOrientation
-            {
-                photoOutputVideoConnection.videoOrientation = videoOrientation
-            }
+        if let photoOutputVideoConnection = self.config.photoOutput.connection(with: .video)
+            , let videoOrientation = CameraHelper.videoOrientationFor(deviceOrientation: config.rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90.0)  {
+            photoOutputVideoConnection.videoOrientation = videoOrientation
         }
         await stream.pause()
         let photoSettings = await config.buildPhotoSettings()
@@ -241,15 +210,13 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
     ) {
 
         guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
-
-        let image = CIImage(cvPixelBuffer: pixelBuffer)
+        let image = CIImage(cvPixelBuffer: pixelBuffer, options: [.applyOrientationProperty: true])
         Task {
             guard let rotationCoordinator = await config.rotationCoordinator else {
                 return
             }
             connection.videoRotationAngle =
                 await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
-
             await self.stream.emitPreview(image)
         }
     }

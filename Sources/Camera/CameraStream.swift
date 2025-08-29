@@ -12,7 +12,7 @@ actor CameraStream: CameraStreamProtocol {
     private(set) var isPreviewPaused = false
     /// Continuation used to yield preview frames into the async stream.
     private var previewContinuation: AsyncStream<CIImage>.Continuation?
-    
+    private var skipFirstframe = 2 // a bug in the orientation fo the first frames occured so skipp some frame
     /// Public async stream of preview CIImages.
     private(set) lazy var previewStream: AsyncStream<CIImage> = {
         AsyncStream { continuation in
@@ -33,6 +33,10 @@ actor CameraStream: CameraStreamProtocol {
 
     /// Emits a CIImage preview frame to the preview stream if not paused or stopped.
     func emitPreview(_ ciImage: CIImage) {
+        guard skipFirstframe == 0 else {
+            skipFirstframe -= 1
+            return
+        }
         if !isPreviewPaused {
             previewContinuation?.yield(ciImage)
         }
