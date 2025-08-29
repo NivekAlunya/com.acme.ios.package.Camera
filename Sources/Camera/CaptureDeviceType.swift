@@ -7,7 +7,7 @@
 
 import AVFoundation
 
-
+/// A wrapper enum for `AVCaptureDevice.DeviceType` to provide a `CaseIterable` and more convenient interface.
 public enum CaptureDeviceType: CaseIterable {
 
     case builtInDualCamera
@@ -27,9 +27,9 @@ public enum CaptureDeviceType: CaseIterable {
     case externalUnknown
 #endif
     
-
+    /// The string representation of the device type.
     var name: String {
-        return switch self {
+        switch self {
         case .builtInDualCamera: "builtInDualCamera"
         case .builtInDualWideCamera: "builtInDualWideCamera"
         case .builtInLiDARDepthCamera: "builtInLiDARDepthCamera"
@@ -49,23 +49,24 @@ public enum CaptureDeviceType: CaseIterable {
         }
     }
     
+    /// The corresponding `AVCaptureDevice.DeviceType`.
     var deviceType: AVCaptureDevice.DeviceType {
-        return switch self {
-        case .builtInDualCamera: AVCaptureDevice.DeviceType.builtInDualCamera
-        case .builtInDualWideCamera: AVCaptureDevice.DeviceType.builtInDualWideCamera
-        case .builtInLiDARDepthCamera: AVCaptureDevice.DeviceType.builtInLiDARDepthCamera
-        case .builtInMicrophone: AVCaptureDevice.DeviceType.builtInMicrophone
-        case .builtInTelephotoCamera: AVCaptureDevice.DeviceType.builtInTelephotoCamera
-        case .builtInTripleCamera: AVCaptureDevice.DeviceType.builtInTripleCamera
-        case .builtInTrueDepthCamera: AVCaptureDevice.DeviceType.builtInTrueDepthCamera
-        case .builtInUltraWideCamera: AVCaptureDevice.DeviceType.builtInUltraWideCamera
-        case .builtInWideAngleCamera: AVCaptureDevice.DeviceType.builtInWideAngleCamera
-        case .continuityCamera: AVCaptureDevice.DeviceType.continuityCamera
-        case .external: AVCaptureDevice.DeviceType.external
-        case .microphone: AVCaptureDevice.DeviceType.microphone
+        switch self {
+        case .builtInDualCamera: .builtInDualCamera
+        case .builtInDualWideCamera: .builtInDualWideCamera
+        case .builtInLiDARDepthCamera: .builtInLiDARDepthCamera
+        case .builtInMicrophone: .builtInMicrophone
+        case .builtInTelephotoCamera: .builtInTelephotoCamera
+        case .builtInTripleCamera: .builtInTripleCamera
+        case .builtInTrueDepthCamera: .builtInTrueDepthCamera
+        case .builtInUltraWideCamera: .builtInUltraWideCamera
+        case .builtInWideAngleCamera: .builtInWideAngleCamera
+        case .continuityCamera: .continuityCamera
+        case .external: .external
+        case .microphone: .microphone
 #if os(macOS)
-        case .deskViewCamera: AVCaptureDevice.DeviceType.deskViewCamera
-        case .externalUnknown: AVCaptureDevice.DeviceType.externalUnknown
+        case .deskViewCamera: .deskViewCamera
+        case .externalUnknown: .externalUnknown
 #endif
         }
     }

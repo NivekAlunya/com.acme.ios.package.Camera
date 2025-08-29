@@ -10,13 +10,19 @@ import UIKit
 import SwiftUI
 @preconcurrency import AVFoundation
 
-/// CameraModel manages camera state, preview streaming, and photo capture for SwiftUI views.
+/// The `CameraModel` is an `ObservableObject` that acts as the primary view model for the camera UI.
+/// It manages the camera's state, handles user interactions, and provides data streams for the view to consume.
+/// This class is marked as `@MainActor` to ensure that all UI updates are performed on the main thread.
 @MainActor
 public class CameraModel: ObservableObject {
+    /// A type alias for the data captured when a photo is taken.
     typealias Capture = (photo: AVCapturePhoto?, config: CameraConfiguration?)
-    // MARK: - State
 
+    // MARK: - State Management
+
+    /// Represents the different states of the camera UI.
     enum State: Equatable {
+        /// Compares two `State` instances for equality.
         static func == (lhs: CameraModel.State, rhs: CameraModel.State) -> Bool {
             switch (lhs, rhs) {
             case (.accepted(let a), .accepted(let b)):
@@ -32,34 +38,66 @@ public class CameraModel: ObservableObject {
             }
         }
         
-        case previewing, processing, validating, unauthorized, loading
+        /// The camera is displaying the live preview.
+        case previewing
+        /// The camera is in the process of capturing a photo.
+        case processing
+        /// The captured photo is being displayed for user validation (accept or reject).
+        case validating
+        /// The user has not granted camera permissions.
+        case unauthorized
+        /// The camera is being initialized.
+        case loading
+        /// The user has accepted the captured photo.
         case accepted(Capture)
     }
     
     // MARK: - Published Properties
+
+    /// The current state of the camera UI.
     @Published var state = State.loading
+    /// The last error that occurred.
     @Published var error: CameraError?
+    /// The current camera preview image.
     @Published var preview: Image?
+    /// The captured photo and its configuration.
     @Published var capture: Capture?
+    /// The current camera position (front or back).
     @Published var position = AVCaptureDevice.Position.back
+    /// The list of available session presets.
     @Published var presets = [CaptureSessionPreset]()
+    /// The list of available camera devices.
     @Published var devices = [AVCaptureDevice]()
+    /// The list of supported video formats.
     @Published var formats = [VideoCodecType]()
+    /// The list of available flash modes.
     @Published var flashModes = [CameraFlashMode]()
+    /// The currently selected session preset.
     @Published var selectedPreset = CaptureSessionPreset.photo
+    /// The currently selected camera device.
     @Published var selectedDevice: AVCaptureDevice?
+    /// The currently selected video format.
     @Published var selectedFormat = VideoCodecType.hevc
+    /// The currently selected flash mode.
     @Published var selectedFlashMode = CameraFlashMode.unavailable
+    /// The available zoom range for the current device.
     @Published var zoomRange = 1.0...1.0
+    /// The current zoom factor.
     @Published var zoom: Double = 1.0
 
     // MARK: - Private Properties
-    private let camera : any CameraProtocol
+
+    /// The underlying camera actor that handles capture operations.
+    private let camera: any CameraProtocol
+    /// The task that listens for preview frames from the camera.
     private var previewTask: Task<Void, Never>?
+    /// The task that listens for captured photos from the camera.
     private var photoTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
+    /// Initializes the camera model.
+    /// - Parameter camera: The camera protocol instance to use. Defaults to the shared `Camera` actor.
     init(camera: any CameraProtocol = Camera.shared) {
         self.camera = camera
     }
@@ -70,6 +108,8 @@ public class CameraModel: ObservableObject {
     }
 
     // MARK: - Public Methods
+
+    /// Starts the camera, begins listening for previews and photos, and loads initial settings.
     func start() async {
         do {
             try await camera.start()
@@ -81,14 +121,14 @@ public class CameraModel: ObservableObject {
                 state = .unauthorized
             }
             self.error = error
-            
         } catch {
-            
+            // Handle other potential errors if necessary
         }
     }
 
     // MARK: - User Actions
 
+    /// Handles the user tapping the "take photo" button.
     func handleTakePhoto() {
         Task {
             state = .processing
@@ -96,11 +136,12 @@ public class CameraModel: ObservableObject {
         }
     }
 
+    /// Handles the user exiting the camera view.
     func handleExit() {
         exit()
     }
     
-    
+    /// Handles the user switching the camera position (front/back).
     func handleSwitchPosition() {
         Task {
             do {
@@ -110,22 +151,24 @@ public class CameraModel: ObservableObject {
             } catch (let error as CameraError) {
                 self.error = error
             } catch {
-                
+                // Handle other potential errors
             }
         }
     }
 
+    /// Handles the user accepting the captured photo.
     func handleAcceptPhoto() {
         acceptPhoto()
     }
     
-
+    /// Handles the user rejecting the captured photo.
     func handleRejectPhoto() {
         rejectPhoto()
     }
     
     // MARK: - Settings Selection
 
+    /// Selects a new session preset.
     func selectPreset(_ preset: CaptureSessionPreset) {
         Task {
             selectedPreset = preset
@@ -133,6 +176,7 @@ public class CameraModel: ObservableObject {
         }
     }
 
+    /// Selects a new camera device.
     func selectDevice(_ device: AVCaptureDevice) {
         Task {
             selectedDevice = device
@@ -142,11 +186,12 @@ public class CameraModel: ObservableObject {
             } catch (let error as CameraError) {
                 self.error = error
             } catch {
-                
+                // Handle other potential errors
             }
         }
     }
 
+    /// Selects a new video format.
     func selectFormat(_ format: VideoCodecType) {
         Task {
             selectedFormat = format
@@ -154,6 +199,7 @@ public class CameraModel: ObservableObject {
         }
     }
 
+    /// Selects a new flash mode.
     func selectFlashMode(_ flashMode: CameraFlashMode) {
         Task {
             await camera.changeFlashMode(flashMode)
@@ -161,6 +207,7 @@ public class CameraModel: ObservableObject {
         }
     }
 
+    /// Selects a new zoom factor.
     func selectZoom(_ zoom: Double) {
         Task {
             do {
@@ -169,16 +216,15 @@ public class CameraModel: ObservableObject {
             } catch (let error as CameraError) {
                 self.error = error
             } catch {
-                
+                // Handle other potential errors
             }
         }
     }
-
     
     // MARK: - Private Methods
 
+    /// Loads the initial camera settings and updates the published properties.
     private func loadSettings() async {
-
         if let currentDevice = await camera.config.deviceInput?.device {
             selectedDevice = currentDevice
         } else if let firstDevice = devices.first {
@@ -198,6 +244,7 @@ public class CameraModel: ObservableObject {
         zoomRange = await camera.config.zoomRange
     }
     
+    /// Listens for preview frames from the camera stream and updates the `preview` property.
     private func listenCameraPreviews() async {
         for await image in await camera.stream.previewStream {
             if state == .loading {
@@ -207,12 +254,14 @@ public class CameraModel: ObservableObject {
         }
     }
 
+    /// Listens for captured photos from the camera stream and updates the state.
     private func listenPhotoCapture() async {
         for await photo in await camera.stream.photoStream {
             await setPhoto(photo: photo)
         }
     }
 
+    /// Sets the preview image from a `CIImage`.
     private func setPreview(image: CIImage?) async {
         guard let image = image, let cgImage = await image.toCGImage() else {
             self.preview = nil
@@ -221,6 +270,7 @@ public class CameraModel: ObservableObject {
         self.preview = Image(decorative: cgImage, scale: 1)
     }
 
+    /// Sets the state to `validating` and displays the captured photo as a preview.
     private func setPhoto(photo: CIImage) async {
         guard let cgImage = await photo.toCGImage() else {
             self.preview = nil
@@ -231,6 +281,7 @@ public class CameraModel: ObservableObject {
         await camera.pause()
     }
     
+    /// Cleans up resources and ends the camera session.
     private func exit() {
         previewTask?.cancel()
         photoTask?.cancel()
@@ -240,6 +291,7 @@ public class CameraModel: ObservableObject {
         }
     }
     
+    /// Sets the state to `accepted` with the captured photo and exits.
     private func acceptPhoto() {
         Task {
             let (photo, config) = (await camera.photo, await camera.config)
@@ -248,11 +300,11 @@ public class CameraModel: ObservableObject {
         }
     }
 
+    /// Resumes the camera preview after a photo was rejected.
     private func rejectPhoto() {
         Task {
             state = .previewing
             await camera.resume()
         }
     }
-
 }

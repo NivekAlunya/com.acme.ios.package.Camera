@@ -4,29 +4,49 @@
 //
 //  Created by Kevin LAUNAY.
 //
-//
-// Camera actor implementation using AVFoundation and async/await for video preview and photo capture.
 
-@preconcurrency import AVFoundation
+import AVFoundation
 import Foundation
 import UIKit
 
-enum CameraState: Error {
+/// Represents the possible states of the `Camera` actor.
+private enum CameraState {
+    /// The camera has not been set up yet.
     case needSetup
+    /// The user has not granted camera permissions.
     case unauthorized
+    /// The camera is running and capturing video.
     case started
+    /// The camera session is paused.
     case paused
+    /// The camera session has been terminated.
     case ended
 }
 
+/// The `Camera` actor manages all capture-related operations using AVFoundation.
+/// It handles the capture session, device configuration, and data output for video and photos.
+/// This actor is a singleton to ensure that only one instance manages the camera hardware at a time.
 public actor Camera: NSObject {
 
+    /// The shared singleton instance of the `Camera`.
     static let shared = Camera()
+
+    /// The current camera configuration.
     var config: CameraConfiguration
+
+    /// The stream that broadcasts camera previews and captured photos.
     var stream: any CameraStreamProtocol = CameraStream()
+
+    /// The most recently captured photo.
     private(set) var photo: AVCapturePhoto?
+
+    /// The underlying `AVCaptureSession` that manages the capture pipeline.
     private let session = AVCaptureSession()
+
+    /// The video data output for capturing preview frames.
     private let videoOutput = AVCaptureVideoDataOutput()
+
+    /// The current state of the camera.
     private var state = CameraState.needSetup
 
     public override init() {
@@ -34,10 +54,7 @@ public actor Camera: NSObject {
         super.init()
     }
 
-    deinit {
-
-    }
-
+    /// Removes the current capture device input from the session.
     private func removeDevice() {
         if session.isRunning {
             session.stopRunning()
@@ -46,6 +63,9 @@ public actor Camera: NSObject {
             session.removeInput(deviceInput)
         }
     }
+
+    /// Changes the active camera device.
+    /// - Parameter device: The `AVCaptureDevice` to switch to.
     private func changeDevice(device: AVCaptureDevice) async throws {
         try await pause()
         removeDevice()
@@ -53,22 +73,26 @@ public actor Camera: NSObject {
         try await start()
     }
 
+    /// Retrieves the default camera device based on the current configuration.
+    /// - Returns: An `AVCaptureDevice` instance, or `nil` if no suitable device is found.
     private func getDefaultCamera() -> AVCaptureDevice? {
         config.listCaptureDevice.first ?? AVCaptureDevice.default(for: .video)
     }
 
+    /// Sets up the capture session with a specific device.
+    /// - Parameter device: The `AVCaptureDevice` to be used for the session.
     private func setup(device: AVCaptureDevice) throws {
-
         if self.session.isRunning {
             self.session.stopRunning()
         }
         try config.setup(device: device, session: session, delegate: self)
     }
 
+    /// Processes a captured photo, converts it to a `CIImage`, and emits it through the stream.
+    /// - Parameter photo: The `AVCapturePhoto` to process.
     func processPhoto(_ photo: AVCapturePhoto) async {
-
         guard let data = photo.fileDataRepresentation(),
-            let ciImage = CIImage(data: data, options: [.applyOrientationProperty: true])
+              let ciImage = CIImage(data: data, options: [.applyOrientationProperty: true])
         else {
             return
         }
@@ -77,7 +101,11 @@ public actor Camera: NSObject {
     }
 }
 
+// MARK: - CameraProtocol Conformance
 extension Camera: CameraProtocol {
+
+    /// Changes the zoom factor of the camera.
+    /// - Parameter factor: The desired zoom factor.
     func changeZoom(_ factor: CGFloat) throws {
         guard let device = config.deviceInput?.device else { return }
         do {
@@ -86,15 +114,14 @@ extension Camera: CameraProtocol {
                 1.0, min(factor, device.activeFormat.videoMaxZoomFactor))
             device.unlockForConfiguration()
             config.zoom = Float(device.videoZoomFactor)
-
         } catch {
             throw CameraError.zoomUpdateFailed
         }
     }
 
-    // MARK - CameraProtocol
+    /// Starts the camera session.
+    /// This method checks for authorization, sets up the camera if needed, and starts the session.
     func start() async throws {
-
         guard !self.session.isRunning else {
             throw CameraError.cannotStartCamera
         }
@@ -123,13 +150,14 @@ extension Camera: CameraProtocol {
         self.session.startRunning()
     }
 
+    /// Resumes a paused camera session.
     func resume() async {
         await stream.resume()
         state = .started
         self.session.startRunning()
     }
 
-    /// Stops the capture session safely and pauses preview emission.
+    /// Pauses the camera session and stops the preview stream.
     func pause() async {
         if session.isRunning {
             await stream.pause()
@@ -138,15 +166,18 @@ extension Camera: CameraProtocol {
         }
     }
 
+    /// Ends the camera session and cleans up resources.
     func end() async {
         await pause()
         await stream.finish()
         state = .ended
     }
     
+    /// Captures a photo.
+    /// This method configures photo settings, including orientation and flash, and initiates the capture.
     func takePhoto() async {
-        if let photoOutputVideoConnection = self.config.photoOutput.connection(with: .video)
-            , let videoOrientation = CameraHelper.videoOrientationFor(deviceOrientation: config.rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90.0)  {
+        if let photoOutputVideoConnection = self.config.photoOutput.connection(with: .video),
+           let videoOrientation = CameraHelper.videoOrientationFor(deviceOrientation: config.rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90.0) {
             photoOutputVideoConnection.videoOrientation = videoOrientation
         }
         await stream.pause()
@@ -155,6 +186,8 @@ extension Camera: CameraProtocol {
         self.config.photoOutput.capturePhoto(with: photoSettings, delegate: self)
     }
 
+    /// Changes the session preset for the camera.
+    /// - Parameter preset: The `CaptureSessionPreset` to apply.
     func changePreset(preset: CaptureSessionPreset = .photo) {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
@@ -162,10 +195,13 @@ extension Camera: CameraProtocol {
         session.sessionPreset = config.preset.avPreset
     }
 
+    /// Changes the active camera device.
+    /// - Parameter device: The `AVCaptureDevice` to switch to.
     func changeCamera(device: AVCaptureDevice) async throws {
         try await changeDevice(device: device)
     }
 
+    /// Switches between front and back cameras.
     func changePosition() async throws {
         config.switchPosition()
         guard let device = config.getDefaultCamera() else {
@@ -174,19 +210,25 @@ extension Camera: CameraProtocol {
         try await changeDevice(device: device)
     }
 
+    /// Changes the video codec for photo capture.
+    /// - Parameter codec: The `VideoCodecType` to use.
     func changeCodec(_ codec: VideoCodecType) {
         config.videoCodecType = codec
     }
 
+    /// Changes the flash mode for photo capture.
+    /// - Parameter flashMode: The `CameraFlashMode` to use.
     func changeFlashMode(_ flashMode: CameraFlashMode) {
         config.flashMode = flashMode
     }
 
+    /// Creates a new `CameraStream` for broadcasting data.
     private func createStreams() {
         stream = CameraStream()
     }
 }
 
+// MARK: - AVCapturePhotoCaptureDelegate Conformance
 extension Camera: AVCapturePhotoCaptureDelegate {
     nonisolated public func photoOutput(
         _ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,
@@ -202,13 +244,12 @@ extension Camera: AVCapturePhotoCaptureDelegate {
     }
 }
 
+// MARK: - AVCaptureVideoDataOutputSampleBufferDelegate Conformance
 extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
-
     nonisolated public func captureOutput(
         _ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-
         guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
         let image = CIImage(cvPixelBuffer: pixelBuffer, options: [.applyOrientationProperty: true])
         Task {
