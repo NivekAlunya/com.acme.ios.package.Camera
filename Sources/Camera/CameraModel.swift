@@ -218,7 +218,7 @@ public class CameraModel: ObservableObject {
             self.preview = nil
             return
         }
-        self.preview = Image(decorative: cgImage, scale: 1, orientation: .up)
+        self.preview = Image(decorative: cgImage, scale: 1)
     }
 
     private func setPhoto(photo: CIImage) async {
@@ -227,7 +227,7 @@ public class CameraModel: ObservableObject {
             return
         }
         state = .validating
-        self.preview = Image(decorative: cgImage, scale: 1, orientation: .up)
+        self.preview = Image(decorative: cgImage, scale: 1)
         await camera.pause()
     }
     
