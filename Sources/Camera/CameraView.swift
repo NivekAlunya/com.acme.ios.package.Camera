@@ -64,8 +64,8 @@ public struct CameraView: View {
         }
         .alert(isPresented: $showErrorAlert) {
             Alert(
-                title: Text(CameraHelper.stringFrom("alert error camera", bundle: bundle)),
-                message: Text(CameraHelper.stringFrom(model.error?.stringKey ?? "error unknown", bundle: bundle))
+                title: Text(CameraHelper.stringFrom("alert_error_camera", bundle: bundle)),
+                message: Text(CameraHelper.stringFrom(model.error?.stringKey ?? "error_unknown", bundle: bundle))
                     ,
                 dismissButton: .default(Text(CameraHelper.stringFrom("OK", bundle: bundle))) {
                     model.error = nil
@@ -81,7 +81,7 @@ public struct CameraView: View {
 
 extension CameraView {
     struct FooterView: View {
-        @Environment(\.openURL) private var openURL
+        @Environment(\.bundle) var bundle
         @ObservedObject var model: CameraModel
         @Binding var isSettingShown: Bool
         var onExit: () -> Void
@@ -90,11 +90,8 @@ extension CameraView {
             HStack(spacing: 16) {
                 switch model.state {
                 case .previewing:
-                    Button(action: onExit) {
-                        Image(systemName: "xmark.circle")
-                    }
-                    .accessibilityLabel("Close Camera")
-                    .frame(maxWidth: .infinity)
+                    CloseButton(onExit: onExit)
+                        .frame(maxWidth: .infinity)
                     SettingsButton(isSettingShown: $isSettingShown)
                         .frame(maxWidth: .infinity)
                     SwitchPositionButton(action: model.handleSwitchPosition)
@@ -111,22 +108,10 @@ extension CameraView {
                 case .accepted:
                     ProcessingView()
                 case .unauthorized:
-                    Button {
-                        guard let url = URL(string: UIApplication.openSettingsURLString) else {
-                            return
-                        }
-                        openURL(url)
-                    }
-                    label: {
-                        Image(systemName: "gear.badge.xmark")
-                    }
-                    .accessibilityLabel("Close Camera")
+                    OpenSettingsButton()
                     .frame(maxWidth: .infinity)
-                    Button(action: onExit) {
-                        Image(systemName: "xmark.circle")
-                    }
-                    .accessibilityLabel("Close Camera")
-                    .frame(maxWidth: .infinity)
+                    CloseButton(onExit: onExit)
+                        .frame(maxWidth: .infinity)
                 }
             }
             .font(.largeTitle)
@@ -142,7 +127,39 @@ extension CameraView {
         }
     }
 
+    struct CloseButton: View {
+        @Environment(\.bundle) private var bundle
+        var onExit: () -> Void
+        var body: some View {
+            Button(action: onExit) {
+                Image(systemName: "xmark.circle")
+            }
+            .accessibilityLabel(CameraHelper.stringFrom("accessibility_close_camera", bundle: bundle))
+        }
+    }
+
+    
+    
+    struct OpenSettingsButton: View {
+        @Environment(\.bundle) private var bundle
+        @Environment(\.openURL) private var openURL
+        var body: some View {
+            Button {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else {
+                    return
+                }
+                openURL(url)
+            }
+            label: {
+                Image(systemName: "gear.badge.xmark")
+            }
+            .accessibilityLabel(CameraHelper.stringFrom("accessibility_open_application_settings", bundle: bundle))
+
+        }
+    }
+
     struct SettingsButton: View {
+        @Environment(\.bundle) private var bundle
         @Binding var isSettingShown: Bool
         var body: some View {
             Button {
@@ -152,53 +169,56 @@ extension CameraView {
             } label: {
                 Image(systemName: "gear.circle.fill")
             }
-            .accessibilityLabel("Open settings")
+            .accessibilityLabel(CameraHelper.stringFrom("accessibility_open_settings", bundle: bundle))
         }
     }
 
     struct SwitchPositionButton: View {
+        @Environment(\.bundle) private var bundle
         var action: () -> Void
 
         var body: some View {
             Button(action: action) {
                 Image(systemName: "arrow.triangle.2.circlepath.camera")
             }
-            .accessibilityLabel("Switch Camera")
+            .accessibilityLabel(CameraHelper.stringFrom("accessibility_switch_front_back", bundle: bundle))
         }
     }
 
     struct TakePhotoButton: View {
+        @Environment(\.bundle) private var bundle
         var action: () -> Void
 
         var body: some View {
             Button(action: action) {
                 Image(systemName: "circle.circle.fill")
             }
-            .accessibilityLabel("Take Photo")
+            .accessibilityLabel(CameraHelper.stringFrom("accessibility_take_photo", bundle: bundle))
             .glassEffect(.regular)
         }
     }
 
     struct RejectButton: View {
+        @Environment(\.bundle) private var bundle
         var action: () -> Void
 
         var body: some View {
             Button(action: action) {
                 Image(systemName: "xmark.circle.fill")
             }
-            .accessibilityLabel("Reject Photo")
+            .accessibilityLabel(CameraHelper.stringFrom("accessibility_reject_photo", bundle: bundle))
         }
     }
 
     struct AcceptButton: View {
+        @Environment(\.bundle) private var bundle
         var action: () -> Void
 
         var body: some View {
             Button(action: action) {
                 Image(systemName: "checkmark.circle.fill")
             }
-            .accessibilityLabel("Accept Photo")
-        }
+            .accessibilityLabel(CameraHelper.stringFrom("accessibility_accept_photo", bundle: bundle))        }
     }
 
     struct ProcessingView: View {
@@ -218,27 +238,27 @@ extension CameraView {
             TabView(selection: $tabSelection) {
                 PresetSettingsView(model: model)
                     .tabItem {
-                        Label(CameraHelper.stringFrom("option title quality", bundle: bundle), systemImage: "slider.horizontal.3")
+                        Label(CameraHelper.stringFrom("option_title_quality", bundle: bundle), systemImage: "slider.horizontal.3")
                     }
-                    .tag(1)
+                    .tag(0)
 
                 DeviceSettingsView(model: model)
                     .tabItem {
-                        Label(CameraHelper.stringFrom("option title camera", bundle: bundle), systemImage: "camera.on.rectangle")
+                        Label(CameraHelper.stringFrom("option_title_camera", bundle: bundle), systemImage: "camera.on.rectangle")
                             .accentColor(Color.green)
                     }
-                    .tag(2)
+                    .tag(1)
 
                 FormatSettingsView(model: model)
                     .tabItem {
-                        Label(CameraHelper.stringFrom("option title format", bundle: bundle), systemImage: "photo.badge.arrow.down")
+                        Label(CameraHelper.stringFrom("option_title_format", bundle: bundle), systemImage: "photo.badge.arrow.down")
                     }
-                    .tag(3)
+                    .tag(2)
                 FlashModeSettingsView(model: model)
                     .tabItem {
-                        Label(CameraHelper.stringFrom("option title flash mode", bundle: bundle), systemImage: "bolt.fill")
+                        Label(CameraHelper.stringFrom("option_title_flash_mode", bundle: bundle), systemImage: "bolt.fill")
                     }
-                    .tag(4)
+                    .tag(3)
             }
             .presentationDetents([.medium, .large])
             .presentationBackground(.thinMaterial)
@@ -246,10 +266,10 @@ extension CameraView {
             .tint(color)
             .onChange(of: tabSelection) {
                 color = switch tabSelection {
-                case 1: .blue
-                case 2: .green
-                case 3: .red
-                case 4: .yellow
+                case 0: .blue
+                case 1: .green
+                case 2: .red
+                case 3: .yellow
                 default:
                         .black
                 }
@@ -263,7 +283,7 @@ extension CameraView {
 
         var body: some View {
             List {
-                Section(header: Text(CameraHelper.stringFrom("option title quality", bundle: bundle)).bold()) {
+                Section(header: Text(CameraHelper.stringFrom("option_title_quality", bundle: bundle)).bold()) {
                     ForEach(model.presets, id: \.self) { preset in
                         Button(action: { model.selectPreset(preset) }) {
                             HStack {
@@ -287,7 +307,7 @@ extension CameraView {
         @ObservedObject var model: CameraModel
         var body: some View {
             List {
-                Section(header: Text(CameraHelper.stringFrom("option title camera", bundle: bundle)).bold()) {
+                Section(header: Text(CameraHelper.stringFrom("option_title_camera", bundle: bundle)).bold()) {
 
                     VStack {
                         Slider(value: Binding(
@@ -329,7 +349,7 @@ extension CameraView {
 
         var body: some View {
             List {
-                Section(header: Text(CameraHelper.stringFrom("option title format", bundle: bundle)).bold()) {
+                Section(header: Text(CameraHelper.stringFrom("option_title_format", bundle: bundle)).bold()) {
                     ForEach(model.formats, id: \.self) { format in
                         Button(action: { model.selectFormat(format) }) {
                             HStack {
@@ -353,7 +373,7 @@ extension CameraView {
 
         var body: some View {
             List {
-                Section(header: Text(CameraHelper.stringFrom("option title flash mode", bundle: bundle)).bold()) {
+                Section(header: Text(CameraHelper.stringFrom("option_title_flash_mode", bundle: bundle)).bold()) {
                     ForEach(model.flashModes, id: \.self) { flashMode in
                         Button(action: { model.selectFlashMode(flashMode) }) {
                             HStack {

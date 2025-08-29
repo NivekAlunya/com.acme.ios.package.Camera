@@ -23,18 +23,18 @@ public enum CaptureSessionPreset: CaseIterable {
 
     var stringKey: String {
         return switch self {
-        case .photo : "photo"
-        case .low : "low"
-        case .medium : "medium"
-        case .high : "high"
-        case .hd1280x720 : "hd1280x720"
-        case .hd1920x1080 : "hd1920x1080"
-        case .hd4K3840x2160 : "hd4K3840x2160"
-        case .cif352x288 : "cif352x288"
-        case .iFrame1280x720 : "iFrame1280x720"
-        case .iFrame960x540 : "iFrame960x540"
-        case .inputPriority : "inputPriority"
-        case .vga640x480 : "vga640x480"
+        case .photo : "preset_photo"
+        case .low : "preset_low"
+        case .medium : "preset_medium"
+        case .high : "preset_high"
+        case .hd1280x720 : "preset_hd1280x720"
+        case .hd1920x1080 : "preset_hd1920x1080"
+        case .hd4K3840x2160 : "preset_hd4K3840x2160"
+        case .cif352x288 : "preset_cif352x288"
+        case .iFrame1280x720 : "preset_iFrame1280x720"
+        case .iFrame960x540 : "preset_iFrame960x540"
+        case .inputPriority : "preset_inputPriority"
+        case .vga640x480 : "preset_vga640x480"
         }
     }
     

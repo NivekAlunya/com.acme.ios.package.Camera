@@ -13,7 +13,6 @@ protocol CameraStreamProtocol: Actor {
     var isPreviewPaused: Bool { get }
     var previewStream: AsyncStream<CIImage> { get }
     var photoStream: AsyncStream<CIImage> { get }
-
     func emitPreview(_ ciImage: CIImage)
     func emitPhoto(_ ciImage: CIImage)
     func pause()
