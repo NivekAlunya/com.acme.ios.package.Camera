@@ -1,7 +1,84 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "alert camera button ok" : {
+    "accessibility_accept_photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accept the captured photo"
+          }
+        }
+      }
+    },
+    "accessibility_close_camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "close the camera"
+          }
+        }
+      }
+    },
+    "accessibility_open_application_settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "open application system settings"
+          }
+        }
+      }
+    },
+    "accessibility_open_settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "open settings"
+          }
+        }
+      }
+    },
+    "accessibility_switch_front_back" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "switch camera front / back"
+          }
+        }
+      }
+    },
+    "accessibility_take_photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take photo"
+          }
+        }
+      }
+    },
+    "accessiblity_reject_photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reject the captured photo"
+          }
+        }
+      }
+    },
+    "alert_camera__button_ok" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -12,7 +89,7 @@
         }
       }
     },
-    "alert error camera" : {
+    "alert_error_camera" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -23,7 +100,7 @@
         }
       }
     },
-    "camera error cameraUnauthorized" : {
+    "camera_error_cameraUnauthorized" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -34,7 +111,7 @@
         }
       }
     },
-    "camera error cameraUnavailable" : {
+    "camera_error_cameraUnavailable" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -45,7 +122,7 @@
         }
       }
     },
-    "camera error cannotAddInput" : {
+    "camera_error_cannotAddInput" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -56,7 +133,7 @@
         }
       }
     },
-    "camera error cannotAddOutput" : {
+    "camera_error_cannotAddOutput" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -67,7 +144,7 @@
         }
       }
     },
-    "camera error cannotStartCamera" : {
+    "camera_error_cannotStartCamera" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -78,7 +155,7 @@
         }
       }
     },
-    "camera error creationFailed" : {
+    "camera_error_creationFailed" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -89,7 +166,7 @@
         }
       }
     },
-    "camera error zoomUpdateFailed" : {
+    "camera_error_zoomUpdateFailed" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -100,7 +177,7 @@
         }
       }
     },
-    "codec appleProRes4444XQ" : {
+    "codec_appleProRes4444XQ" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -111,7 +188,7 @@
         }
       }
     },
-    "codec h264" : {
+    "codec_h264" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -123,7 +200,7 @@
         }
       }
     },
-    "codec hevc" : {
+    "codec_hevc" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -135,7 +212,7 @@
         }
       }
     },
-    "codec hevcWithAlpha" : {
+    "codec_hevcWithAlpha" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -147,7 +224,7 @@
         }
       }
     },
-    "codec jpeg" : {
+    "codec_jpeg" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -159,7 +236,7 @@
         }
       }
     },
-    "codec JPEGXL" : {
+    "codec_JPEGXL" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -171,7 +248,7 @@
         }
       }
     },
-    "codec proRes422" : {
+    "codec_proRes422" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -183,7 +260,7 @@
         }
       }
     },
-    "codec proRes422HQ" : {
+    "codec_proRes422HQ" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -195,7 +272,7 @@
         }
       }
     },
-    "codec proRes422LT" : {
+    "codec_proRes422LT" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -207,7 +284,7 @@
         }
       }
     },
-    "codec proRes422Proxy" : {
+    "codec_proRes422Proxy" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -219,7 +296,7 @@
         }
       }
     },
-    "codec proRes4444" : {
+    "codec_proRes4444" : {
       "comment" : "the codec used for the output",
       "extractionState" : "manual",
       "localizations" : {
@@ -231,7 +308,7 @@
         }
       }
     },
-    "error unknown" : {
+    "error_unknown" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -242,7 +319,7 @@
         }
       }
     },
-    "flash mode auto" : {
+    "flash_mode_auto" : {
       "comment" : "Flash is in automatic mode",
       "extractionState" : "manual",
       "localizations" : {
@@ -260,7 +337,7 @@
         }
       }
     },
-    "flash mode off" : {
+    "flash_mode_off" : {
       "comment" : "Flash is deactivated",
       "extractionState" : "manual",
       "localizations" : {
@@ -278,7 +355,7 @@
         }
       }
     },
-    "flash mode on" : {
+    "flash_mode_on" : {
       "comment" : "Flash is activated",
       "extractionState" : "manual",
       "localizations" : {
@@ -296,7 +373,7 @@
         }
       }
     },
-    "flash mode unavailable" : {
+    "flash_mode_unavailable" : {
       "comment" : "Flash is unavailable",
       "extractionState" : "manual",
       "localizations" : {
@@ -314,7 +391,7 @@
         }
       }
     },
-    "option title camera" : {
+    "option_title_camera" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -331,7 +408,7 @@
         }
       }
     },
-    "option title flash mode" : {
+    "option_title_flash_mode" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -342,7 +419,7 @@
         }
       }
     },
-    "option title format" : {
+    "option_title_format" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -359,7 +436,7 @@
         }
       }
     },
-    "option title quality" : {
+    "option_title_quality" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -376,7 +453,7 @@
         }
       }
     },
-    "preset cif352x288" : {
+    "preset_cif352x288" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -393,7 +470,7 @@
         }
       }
     },
-    "preset hd4K3840x2160" : {
+    "preset_hd4K3840x2160" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -404,7 +481,7 @@
         }
       }
     },
-    "preset hd1280x720" : {
+    "preset_hd1280x720" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -415,7 +492,7 @@
         }
       }
     },
-    "preset hd1920x1080" : {
+    "preset_hd1920x1080" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -426,7 +503,7 @@
         }
       }
     },
-    "preset high" : {
+    "preset_high" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -443,7 +520,7 @@
         }
       }
     },
-    "preset iFrame960x540" : {
+    "preset_iFrame960x540" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -454,7 +531,7 @@
         }
       }
     },
-    "preset iFrame1280x720" : {
+    "preset_iFrame1280x720" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -465,7 +542,7 @@
         }
       }
     },
-    "preset inputPriority" : {
+    "preset_inputPriority" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -476,7 +553,7 @@
         }
       }
     },
-    "preset low" : {
+    "preset_low" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -493,7 +570,7 @@
         }
       }
     },
-    "preset medium" : {
+    "preset_medium" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -510,7 +587,7 @@
         }
       }
     },
-    "preset photo" : {
+    "preset_photo" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -527,7 +604,7 @@
         }
       }
     },
-    "preset vga640x480" : {
+    "preset_vga640x480" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {

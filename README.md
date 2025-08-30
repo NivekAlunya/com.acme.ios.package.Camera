@@ -50,7 +50,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $isShowingCamera) {
-            CameraView { photo in
+            CameraView { photo, config in
                 if let photo = photo, let cgImage = photo.cgImageRepresentation() {
                     // Get the image orientation from metadata
                     let imageOrientation = UIImage.Orientation(cgImage.orientation)
@@ -80,6 +80,14 @@ extension UIImage.Orientation {
         }
     }
 }
+```
+
+## Testing
+
+To run the tests for this package, you can use the following command:
+
+```bash
+swift test
 ```
 
 ## License
