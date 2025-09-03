@@ -42,13 +42,12 @@ public struct CameraView: View {
     /// Initializes a new `CameraView`.
     /// - Parameters:
     ///   - bundle: The bundle for string localization. Defaults to `.module`.
-    ///   - camera: The camera instance to use. Defaults to the shared `Camera` actor.
     ///   - completion: The closure to call upon completion.
-    public init(bundle: Bundle? = nil, camera: Camera = Camera(), completion: OnComplete?) {
+    public init(bundle: Bundle? = nil, completion: OnComplete?) {
         let resolvedBundle = bundle ?? Bundle.module
         self.completion = completion
         self.bundle = resolvedBundle
-        _model = StateObject(wrappedValue: CameraModel(camera: camera))
+        _model = StateObject(wrappedValue: CameraModel())
     }
 
     /// Internal initializer for previews and testing.

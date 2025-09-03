@@ -9,7 +9,7 @@ import CoreImage
 @preconcurrency import AVFoundation
 
 /// Defines the interface for a camera stream, which provides asynchronous streams of preview frames and captured photos.
-protocol CameraStreamProtocol: Actor {
+public protocol CameraStreamProtocol: Actor {
     /// A boolean indicating whether the preview stream is currently paused.
     var isPreviewPaused: Bool { get }
 

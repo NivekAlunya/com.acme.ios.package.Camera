@@ -11,7 +11,7 @@ import Foundation
 
 /// Defines the asynchronous interface for a camera object.
 /// This protocol allows for mocking and dependency injection, enabling testable camera features.
-protocol CameraProtocol: Actor {
+public protocol CameraProtocol: Actor {
     /// The stream that provides preview frames and captured photos.
     var stream: any CameraStreamProtocol { get }
 
