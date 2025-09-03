@@ -7,7 +7,7 @@
 
 import AVFoundation
 
-enum CameraFlashMode: CaseIterable {
+public enum CameraFlashMode: CaseIterable {
     case on, off, auto, unavailable
 
     var avFlashMode: AVCaptureDevice.FlashMode {

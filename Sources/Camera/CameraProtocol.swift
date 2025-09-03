@@ -10,7 +10,7 @@ import CoreImage
 import Foundation
 
 /// Async camera interface defining preview and photo streams and control methods.
-protocol CameraProtocol: Actor {
+public protocol CameraProtocol: Actor {
     var stream: any CameraStreamProtocol { get }
     var config: CameraConfiguration { get }
     var photo: AVCapturePhoto? { get }

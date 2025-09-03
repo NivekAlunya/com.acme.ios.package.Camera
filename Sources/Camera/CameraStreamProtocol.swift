@@ -9,7 +9,7 @@ import CoreImage
 @preconcurrency import AVFoundation
 
 /// Protocol defining the interface of CameraStream.
-protocol CameraStreamProtocol: Actor {
+public protocol CameraStreamProtocol: Actor {
     var isPreviewPaused: Bool { get }
     var previewStream: AsyncStream<CIImage> { get }
     var photoStream: AsyncStream<CIImage> { get }

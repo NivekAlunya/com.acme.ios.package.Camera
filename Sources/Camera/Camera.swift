@@ -11,8 +11,6 @@
 import Foundation
 import UIKit
 
-
-
 enum CameraState: Error {
     case needSetup
     case unauthorized
@@ -24,10 +22,10 @@ enum CameraState: Error {
 
 public actor Camera: NSObject {
 
-    static let shared = Camera()
-    var config: CameraConfiguration
-    var stream: any CameraStreamProtocol = CameraStream()
-    private(set) var photo: AVCapturePhoto?
+    public static let shared: any CameraProtocol = Camera()
+    public var config: CameraConfiguration
+    public var stream: any CameraStreamProtocol = CameraStream()
+    private(set) public var photo: AVCapturePhoto?
     private let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let queue = DispatchQueue(label: "CameraSessionQueue")
@@ -93,7 +91,7 @@ public actor Camera: NSObject {
 }
 
 extension Camera: CameraProtocol {
-    func changeZoom(_ factor: Float) throws {
+    public func changeZoom(_ factor: Float) throws {
         guard let device = config.deviceInput?.device else { return }
         do {
             try device.lockForConfiguration()
@@ -108,7 +106,7 @@ extension Camera: CameraProtocol {
     }
 
     // MARK - CameraProtocol
-    func start() async throws {
+    public func start() async throws {
         defer {
             queue.resume()
         }
@@ -135,9 +133,9 @@ extension Camera: CameraProtocol {
                 throw CameraError.cameraUnavailable
             }
             try setup(device: device)
-            await createStreams()
+            createStreams()
         case .ended:
-            await createStreams()
+            createStreams()
         default:
             break
         }
@@ -148,7 +146,7 @@ extension Camera: CameraProtocol {
         }
     }
 
-    func resume() async {
+    public func resume() async {
         await stream.resume()
         state = .started
         queue.async {
@@ -157,7 +155,7 @@ extension Camera: CameraProtocol {
     }
 
     /// Stops the capture session safely and pauses preview emission.
-    func pause() async {
+    public func pause() async {
         if session.isRunning {
             await stream.pause()
             state = .paused
@@ -167,13 +165,13 @@ extension Camera: CameraProtocol {
         }
     }
 
-    func end() async {
+    public func end() async {
         await pause()
         await stream.finish()
         state = .ended
     }
 
-    func takePhoto() async {
+    public func takePhoto() async {
         let videoOrientation = await getAVCaptureVideoOrientation()
         if let photoOutputVideoConnection = self.config.photoOutput.connection(with: .video) {
             // Set video orientation for the photo output connection if supported.
@@ -189,18 +187,18 @@ extension Camera: CameraProtocol {
         self.config.photoOutput.capturePhoto(with: photoSettings, delegate: self)
     }
 
-    func changePreset(preset: CaptureSessionPreset = .photo) {
+    public func changePreset(preset: CaptureSessionPreset = .photo) {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         config.preset = preset
         session.sessionPreset = config.preset.avPreset
     }
 
-    func changeCamera(device: AVCaptureDevice) async throws {
+    public func changeCamera(device: AVCaptureDevice) async throws {
         try await changeDevice(device: device)
     }
 
-    func changePosition() async throws {
+    public func changePosition() async throws {
         config.switchPosition()
         guard let device = config.getDefaultCamera() else {
             throw CameraError.cameraUnavailable
@@ -208,11 +206,11 @@ extension Camera: CameraProtocol {
         try await changeDevice(device: device)
     }
 
-    func changeCodec(_ codec: VideoCodecType) {
+    public func changeCodec(_ codec: VideoCodecType) {
         config.videoCodecType = codec
     }
 
-    func changeFlashMode(_ flashMode: CameraFlashMode) {
+    public func changeFlashMode(_ flashMode: CameraFlashMode) {
         config.flashMode = flashMode
     }
 
