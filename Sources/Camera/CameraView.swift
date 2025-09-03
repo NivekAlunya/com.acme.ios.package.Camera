@@ -21,11 +21,11 @@ public struct CameraView: View {
     public let bundle: Bundle
     public let completion: OnComplete?
 
-    public init(bundle: Bundle? = nil, model: CameraModel = CameraModel(), completion: OnComplete?) {
+    public init(bundle: Bundle? = nil, completion: OnComplete?) {
         let resolvedBundle = bundle ?? Bundle.module
         self.completion = completion
         self.bundle = resolvedBundle
-        _model = StateObject(wrappedValue: model)
+        _model = StateObject(wrappedValue: CameraModel())
     }
 
     init(model: CameraModel) {
