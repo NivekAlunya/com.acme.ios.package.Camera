@@ -5,7 +5,7 @@
 //  Created by Kevin LAUNAY.
 //
 
-import AVFoundation
+@preconcurrency import AVFoundation
 import Foundation
 import UIKit
 
@@ -29,16 +29,16 @@ private enum CameraState {
 public actor Camera: NSObject {
 
     /// The shared singleton instance of the `Camera`.
-    static let shared = Camera()
+    public static let shared = Camera()
 
     /// The current camera configuration.
-    var config: CameraConfiguration
+    public var config: CameraConfiguration
 
     /// The stream that broadcasts camera previews and captured photos.
-    var stream: any CameraStreamProtocol = CameraStream()
+    public var stream: any CameraStreamProtocol = CameraStream()
 
     /// The most recently captured photo.
-    private(set) var photo: AVCapturePhoto?
+    private(set) public var photo: AVCapturePhoto?
 
     /// The underlying `AVCaptureSession` that manages the capture pipeline.
     private let session = AVCaptureSession()
@@ -106,7 +106,7 @@ extension Camera: CameraProtocol {
 
     /// Changes the zoom factor of the camera.
     /// - Parameter factor: The desired zoom factor.
-    func changeZoom(_ factor: CGFloat) throws {
+    public func changeZoom(_ factor: CGFloat) throws {
         guard let device = config.deviceInput?.device else { return }
         do {
             try device.lockForConfiguration()
@@ -121,7 +121,7 @@ extension Camera: CameraProtocol {
 
     /// Starts the camera session.
     /// This method checks for authorization, sets up the camera if needed, and starts the session.
-    func start() async throws {
+    public func start() async throws {
         guard !self.session.isRunning else {
             throw CameraError.cannotStartCamera
         }
@@ -151,14 +151,14 @@ extension Camera: CameraProtocol {
     }
 
     /// Resumes a paused camera session.
-    func resume() async {
+    public func resume() async {
         await stream.resume()
         state = .started
         self.session.startRunning()
     }
 
     /// Pauses the camera session and stops the preview stream.
-    func pause() async {
+    public func pause() async {
         if session.isRunning {
             await stream.pause()
             state = .paused
@@ -167,7 +167,7 @@ extension Camera: CameraProtocol {
     }
 
     /// Ends the camera session and cleans up resources.
-    func end() async {
+    public func end() async {
         await pause()
         await stream.finish()
         state = .ended
@@ -175,7 +175,7 @@ extension Camera: CameraProtocol {
     
     /// Captures a photo.
     /// This method configures photo settings, including orientation and flash, and initiates the capture.
-    func takePhoto() async {
+    public func takePhoto() async {
         if let photoOutputVideoConnection = self.config.photoOutput.connection(with: .video),
            let videoOrientation = CameraHelper.videoOrientationFor(deviceOrientation: config.rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90.0) {
             photoOutputVideoConnection.videoOrientation = videoOrientation
@@ -188,7 +188,7 @@ extension Camera: CameraProtocol {
 
     /// Changes the session preset for the camera.
     /// - Parameter preset: The `CaptureSessionPreset` to apply.
-    func changePreset(preset: CaptureSessionPreset = .photo) {
+    public func changePreset(preset: CaptureSessionPreset = .photo) {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         config.preset = preset
@@ -197,12 +197,12 @@ extension Camera: CameraProtocol {
 
     /// Changes the active camera device.
     /// - Parameter device: The `AVCaptureDevice` to switch to.
-    func changeCamera(device: AVCaptureDevice) async throws {
+    public func changeCamera(device: AVCaptureDevice) async throws {
         try await changeDevice(device: device)
     }
 
     /// Switches between front and back cameras.
-    func changePosition() async throws {
+    public func changePosition() async throws {
         config.switchPosition()
         guard let device = config.getDefaultCamera() else {
             throw CameraError.cameraUnavailable
@@ -212,13 +212,13 @@ extension Camera: CameraProtocol {
 
     /// Changes the video codec for photo capture.
     /// - Parameter codec: The `VideoCodecType` to use.
-    func changeCodec(_ codec: VideoCodecType) {
+    public func changeCodec(_ codec: VideoCodecType) {
         config.videoCodecType = codec
     }
 
     /// Changes the flash mode for photo capture.
     /// - Parameter flashMode: The `CameraFlashMode` to use.
-    func changeFlashMode(_ flashMode: CameraFlashMode) {
+    public func changeFlashMode(_ flashMode: CameraFlashMode) {
         config.flashMode = flashMode
     }
 

@@ -8,7 +8,7 @@
 import AVFoundation
 
 /// Represents the flash modes available for the camera.
-enum CameraFlashMode: CaseIterable {
+public enum CameraFlashMode: CaseIterable {
     /// The flash will always be used.
     case on
     /// The flash will never be used.
