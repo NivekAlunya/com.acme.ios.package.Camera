@@ -20,9 +20,9 @@ public struct CameraView: View {
 
     /// A closure that is called when the user finishes the capture flow.
     /// - Parameters:
-    ///   - photo: The captured `AVCapturePhoto`, or `nil` if the user cancels.
+    ///   - photo: The captured `Photo`, or `nil` if the user cancels.
     ///   - config: The `CameraConfiguration` at the time of capture.
-    public typealias OnComplete = (AVCapturePhoto?, CameraConfiguration?) -> Void
+    public typealias OnComplete = ((any Photo)?, CameraConfiguration?) -> Void
 
     /// The view model that manages the camera state.
     @StateObject private var model: CameraModel

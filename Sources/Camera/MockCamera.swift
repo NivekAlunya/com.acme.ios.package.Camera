@@ -26,7 +26,7 @@ actor MockCamera: CameraProtocol {
     var stream: any CameraStreamProtocol
 
     /// A placeholder for a captured photo.
-    var photo: AVCapturePhoto?
+    var photo: (any Photo)?
 
     /// Initializes a `MockCamera`.
     /// - Parameters:
@@ -36,12 +36,14 @@ actor MockCamera: CameraProtocol {
     init(
         configuration: CameraConfiguration = CameraConfiguration(),
         previewImages: [CIImage] = [],
-        photoImages: [CIImage] = []
+        photoImages: [CIImage] = [],
+        photo: (any Photo)? = nil
     ) {
         self.config = configuration
         self.stream = CameraStream()
         self.previewImages = previewImages
         self.photoImages = photoImages
+        self.photo = photo
     }
 
     // MARK: - CameraProtocol Conformance
@@ -70,12 +72,18 @@ actor MockCamera: CameraProtocol {
     }
 
     func pause() async {
-        // No-op for mock
+        await stream.pause()
     }
 
     /// Simulates taking a photo by emitting the `photoImages`.
     func takePhoto() async {
-        for image in photoImages {
+        await stream.pause()
+        if let image = photoImages.first {
+            photoImages.removeFirst()
+            let context = CIContext()
+            if let data = context.pngRepresentation(of: image, format: .RGBA8, colorSpace: image.colorSpace ?? CGColorSpaceCreateDeviceRGB()) {
+                self.photo = MockPhoto(data: data)
+            }
             await stream.emitPhoto(image)
         }
     }

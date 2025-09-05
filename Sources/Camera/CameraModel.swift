@@ -16,7 +16,7 @@ import SwiftUI
 @MainActor
 public class CameraModel: ObservableObject {
     /// A type alias for the data captured when a photo is taken.
-    typealias Capture = (photo: AVCapturePhoto?, config: CameraConfiguration?)
+    typealias Capture = (photo: (any Photo)?, config: CameraConfiguration?)
 
     // MARK: - State Management
 
@@ -26,7 +26,9 @@ public class CameraModel: ObservableObject {
         static func == (lhs: CameraModel.State, rhs: CameraModel.State) -> Bool {
             switch (lhs, rhs) {
             case (.accepted(let a), .accepted(let b)):
-                return a.photo == b.photo && a.config == b.config
+                // We only compare the photo data here. The configuration contains references
+                // to AVFoundation objects that are not easily comparable in a test environment.
+                return a.photo?.fileDataRepresentation() == b.photo?.fileDataRepresentation()
             case (.loading, .loading),
                  (.previewing, .previewing),
                  (.processing, .processing),

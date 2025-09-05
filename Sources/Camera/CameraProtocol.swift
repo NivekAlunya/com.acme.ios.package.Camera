@@ -19,7 +19,7 @@ public protocol CameraProtocol: Actor {
     var config: CameraConfiguration { get }
 
     /// The most recently captured photo.
-    var photo: AVCapturePhoto? { get }
+    var photo: (any Photo)? { get }
 
     /// Changes the capture session preset.
     /// - Parameter preset: The `CaptureSessionPreset` to apply.
