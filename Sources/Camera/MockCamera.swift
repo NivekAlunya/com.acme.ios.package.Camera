@@ -26,7 +26,7 @@ actor MockCamera: CameraProtocol {
     var stream: any CameraStreamProtocol
 
     /// A placeholder for a captured photo.
-    var photo: (any Photo)?
+    var photo: (any PhotoData)?
 
     /// Initializes a `MockCamera`.
     /// - Parameters:
@@ -37,7 +37,7 @@ actor MockCamera: CameraProtocol {
         configuration: CameraConfiguration = CameraConfiguration(),
         previewImages: [CIImage] = [],
         photoImages: [CIImage] = [],
-        photo: (any Photo)? = nil
+        photo: (any PhotoData)? = nil
     ) {
         self.config = configuration
         self.stream = CameraStream()

@@ -38,7 +38,7 @@ public actor Camera: NSObject {
     public var stream: any CameraStreamProtocol = CameraStream()
 
     /// The most recently captured photo.
-    private(set) public var photo: (any Photo)?
+    private(set) public var photo: (any PhotoData)?
 
     /// The underlying `AVCaptureSession` that manages the capture pipeline.
     private let session = AVCaptureSession()

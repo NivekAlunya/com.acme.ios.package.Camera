@@ -22,7 +22,7 @@ public struct CameraView: View {
     /// - Parameters:
     ///   - photo: The captured `Photo`, or `nil` if the user cancels.
     ///   - config: The `CameraConfiguration` at the time of capture.
-    public typealias OnComplete = ((any Photo)?, CameraConfiguration?) -> Void
+    public typealias OnComplete = ((any PhotoData)?, CameraConfiguration?) -> Void
 
     /// The view model that manages the camera state.
     @StateObject private var model: CameraModel

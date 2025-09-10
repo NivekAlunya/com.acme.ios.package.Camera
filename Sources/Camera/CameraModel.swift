@@ -16,7 +16,7 @@ import SwiftUI
 @MainActor
 public class CameraModel: ObservableObject {
     /// A type alias for the data captured when a photo is taken.
-    typealias Capture = (photo: (any Photo)?, config: CameraConfiguration?)
+    typealias Capture = (photo: (any PhotoData)?, config: CameraConfiguration?)
 
     // MARK: - State Management
 

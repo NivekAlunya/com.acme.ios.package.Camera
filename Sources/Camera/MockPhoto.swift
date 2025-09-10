@@ -1,7 +1,7 @@
 import Foundation
 
 // A mock implementation of the Photo protocol for testing purposes.
-class MockPhoto: Photo, Equatable {
+final class MockPhoto: PhotoData, Equatable {
     static func == (lhs: MockPhoto, rhs: MockPhoto) -> Bool {
         return lhs.data == rhs.data
     }
