@@ -7,7 +7,7 @@ A modern, easy-to-use, and customizable camera package for SwiftUI applications.
 
 - **SwiftUI Native:** Designed from the ground up for SwiftUI, providing a `CameraView` that can be easily integrated into any view hierarchy.
 - **Modern Concurrency:** Uses `async/await` and Swift actors to provide a modern, safe, and performant camera implementation.
-- **Photo Capture:** Simple photo capture with a completion handler that returns a `Photo` object.
+- **Photo Capture:** Simple photo capture with a completion handler that returns a `PhotoData` object.
 - **Camera Controls:**
     - Switch between front and back cameras.
     - Select different capture quality presets.
