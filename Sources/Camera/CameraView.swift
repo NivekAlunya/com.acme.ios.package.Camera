@@ -36,6 +36,8 @@ public struct CameraView: View {
     /// The bundle to use for localizing strings.
     public let bundle: Bundle
 
+    public let dismissOnComplete: Bool
+    
     /// The completion handler to call when the flow is finished.
     public let completion: OnComplete?
 
@@ -43,18 +45,20 @@ public struct CameraView: View {
     /// - Parameters:
     ///   - bundle: The bundle for string localization. Defaults to `.module`.
     ///   - completion: The closure to call upon completion.
-    public init(bundle: Bundle? = nil, completion: OnComplete?) {
+    public init(bundle: Bundle? = nil, dismissOnComplete: Bool = true, completion: OnComplete?) {
         let resolvedBundle = bundle ?? Bundle.module
         self.completion = completion
         self.bundle = resolvedBundle
+        self.dismissOnComplete = dismissOnComplete
         _model = StateObject(wrappedValue: CameraModel())
     }
 
     /// Internal initializer for previews and testing.
-    init(model: CameraModel) {
+    init(model: CameraModel, dismissOnComplete: Bool = true) {
         self.completion = nil
-        _model = StateObject(wrappedValue: model)
         self.bundle = .module
+        self.dismissOnComplete = dismissOnComplete
+        _model = StateObject(wrappedValue: model)
     }
 
     public var body: some View {
@@ -76,12 +80,21 @@ public struct CameraView: View {
             }
         }
         .task {
+            print("CameraView appeared for the first time, starting camera...")
             await model.start()
+        }
+        .onDisappear {
+            print("CameraView disappeared, stopping camera...")
+            Task {
+                await model.stop()
+            }
         }
         .onChange(of: model.state) {
             if case .accepted(let accepted) = model.state {
                 completion?(accepted.photo, accepted.config)
-                dismiss()
+                if dismissOnComplete {
+                    dismiss()
+                }
             }
         }
         .onChange(of: model.error) {

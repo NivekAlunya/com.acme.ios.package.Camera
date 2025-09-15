@@ -111,21 +111,28 @@ public class CameraModel: ObservableObject {
 
     // MARK: - Public Methods
 
+    
     /// Starts the camera, begins listening for previews and photos, and loads initial settings.
     func start() async {
-        do {
-            try await camera.start()
-            previewTask = Task { await listenCameraPreviews() }
-            photoTask = Task { await listenPhotoCapture() }
-            await loadSettings()
-        } catch (let error as CameraError) {
-            if error == .cameraUnauthorized {
-                state = .unauthorized
+        state = .loading
+        Task(priority: .medium) {
+            do {
+                try await camera.start()
+                previewTask = Task { await listenCameraPreviews() }
+                photoTask = Task { await listenPhotoCapture() }
+                await loadSettings()
+            } catch (let error as CameraError) {
+                if error == .cameraUnauthorized {
+                    state = .unauthorized
+                }
+                self.error = error
+            } catch {
+                // Handle other potential errors if necessary
             }
-            self.error = error
-        } catch {
-            // Handle other potential errors if necessary
         }
+    }
+    func stop() async {
+        await camera.end()
     }
 
     // MARK: - User Actions
@@ -165,7 +172,7 @@ public class CameraModel: ObservableObject {
     
     /// Handles the user rejecting the captured photo.
     func handleRejectPhoto() {
-        rejectPhoto()
+        resetPhoto()
     }
     
     // MARK: - Settings Selection
@@ -301,9 +308,9 @@ public class CameraModel: ObservableObject {
             exit()
         }
     }
-
+    
     /// Resumes the camera preview after a photo was rejected.
-    private func rejectPhoto() {
+    public func resetPhoto() {
         Task {
             state = .previewing
             await camera.resume()
