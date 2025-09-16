@@ -16,7 +16,6 @@ extension EnvironmentValues {
 /// The main SwiftUI view for the camera interface.
 /// It provides a full-screen camera preview, controls for taking photos, and a settings sheet.
 public struct CameraView: View {
-    @Environment(\.dismiss) private var dismiss
 
     /// A closure that is called when the user finishes the capture flow.
     /// - Parameters:
@@ -25,7 +24,7 @@ public struct CameraView: View {
     public typealias OnComplete = ((any PhotoData)?, CameraConfiguration?) -> Void
 
     /// The view model that manages the camera state.
-    @StateObject private var model: CameraModel
+    private var model: CameraModel
 
     /// A state variable to control the visibility of the settings sheet.
     @State private var isSettingShown = false
@@ -50,7 +49,7 @@ public struct CameraView: View {
         self.completion = completion
         self.bundle = resolvedBundle
         self.dismissOnComplete = dismissOnComplete
-        _model = StateObject(wrappedValue: CameraModel())
+        self.model = CameraModel()
     }
 
     /// Internal initializer for previews and testing.
@@ -58,7 +57,7 @@ public struct CameraView: View {
         self.completion = nil
         self.bundle = .module
         self.dismissOnComplete = dismissOnComplete
-        _model = StateObject(wrappedValue: model)
+        self.model = model
     }
 
     public var body: some View {
@@ -75,7 +74,6 @@ public struct CameraView: View {
         .safeAreaInset(edge: .bottom) {
             FooterView(model: model, isSettingShown: $isSettingShown) {
                 model.handleExit()
-                dismiss()
                 completion?(nil, nil)
             }
         }
@@ -92,9 +90,6 @@ public struct CameraView: View {
         .onChange(of: model.state) {
             if case .accepted(let accepted) = model.state {
                 completion?(accepted.photo, accepted.config)
-                if dismissOnComplete {
-                    dismiss()
-                }
             }
         }
         .onChange(of: model.error) {
@@ -125,15 +120,15 @@ extension CameraView {
     /// The controls shown depend on the current state of the `CameraModel`.
     struct FooterView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         @Binding var isSettingShown: Bool
-        var onExit: () -> Void
+        var onCancel: (() -> Void)
 
         var body: some View {
             HStack(spacing: 16) {
                 switch model.state {
                 case .previewing:
-                    CloseButton(onExit: onExit)
+                    CancelButton(onCancel: onCancel)
                         .frame(maxWidth: .infinity)
                     SettingsButton(isSettingShown: $isSettingShown)
                         .frame(maxWidth: .infinity)
@@ -153,10 +148,10 @@ extension CameraView {
                 case .unauthorized:
                     OpenSettingsButton()
                         .frame(maxWidth: .infinity)
-                    CloseButton(onExit: onExit)
+                    CancelButton(onCancel: onCancel)
                         .frame(maxWidth: .infinity)
                 case .loading:
-                    CloseButton(onExit: onExit)
+                    CancelButton(onCancel: onCancel)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -173,11 +168,11 @@ extension CameraView {
     }
 
     /// A button to close the camera view.
-    struct CloseButton: View {
+    struct CancelButton: View {
         @Environment(\.bundle) private var bundle
-        var onExit: () -> Void
+        var onCancel: () -> Void
         var body: some View {
-            Button(action: onExit) {
+            Button(action: onCancel) {
                 Image(systemName: "xmark.circle")
             }
             .accessibilityLabel(CameraHelper.stringFrom("accessibility_close_camera", bundle: bundle))
@@ -279,7 +274,7 @@ extension CameraView {
     /// The settings view, presented as a sheet, containing various camera options in a tab view.
     struct SettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         @State private var tabSelection = 1
         @State private var color = Color.blue
         var body: some View {
@@ -327,7 +322,7 @@ extension CameraView {
     /// A settings view for selecting the capture session preset (quality).
     struct PresetSettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_quality", bundle: bundle)).bold()) {
@@ -354,7 +349,7 @@ extension CameraView {
     /// A settings view for selecting the camera device and zoom factor.
     struct DeviceSettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_camera", bundle: bundle)).bold()) {
@@ -384,7 +379,7 @@ extension CameraView {
     /// A settings view for selecting the video codec format.
     struct FormatSettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_format", bundle: bundle)).bold()) {
@@ -403,7 +398,7 @@ extension CameraView {
     /// A settings view for selecting the flash mode.
     struct FlashModeSettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_flash_mode", bundle: bundle)).bold()) {

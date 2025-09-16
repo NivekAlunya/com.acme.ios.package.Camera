@@ -13,8 +13,9 @@ import SwiftUI
 /// The `CameraModel` is an `ObservableObject` that acts as the primary view model for the camera UI.
 /// It manages the camera's state, handles user interactions, and provides data streams for the view to consume.
 /// This class is marked as `@MainActor` to ensure that all UI updates are performed on the main thread.
+@Observable
 @MainActor
-public class CameraModel: ObservableObject {
+public class CameraModel {
     /// A type alias for the data captured when a photo is taken.
     typealias Capture = (photo: (any PhotoData)?, config: CameraConfiguration?)
 
@@ -28,7 +29,7 @@ public class CameraModel: ObservableObject {
             case (.accepted(let a), .accepted(let b)):
                 // We only compare the photo data here. The configuration contains references
                 // to AVFoundation objects that are not easily comparable in a test environment.
-                return a.photo?.fileDataRepresentation() == b.photo?.fileDataRepresentation()
+                return String(describing: a.photo?.getMetadata()) == String(describing: b.photo?.getMetadata())
             case (.loading, .loading),
                  (.previewing, .previewing),
                  (.processing, .processing),
@@ -57,38 +58,37 @@ public class CameraModel: ObservableObject {
     // MARK: - Published Properties
 
     /// The current state of the camera UI.
-    @Published var state = State.loading
+    var state = State.loading
     /// The last error that occurred.
-    @Published var error: CameraError?
+    var error: CameraError?
     /// The current camera preview image.
-    @Published var preview: Image?
+    var preview: Image?
     /// The captured photo and its configuration.
-    @Published var capture: Capture?
+    var capture: Capture?
     /// The current camera position (front or back).
-    @Published var position = AVCaptureDevice.Position.back
+    var position = AVCaptureDevice.Position.back
     /// The list of available session presets.
-    @Published var presets = [CaptureSessionPreset]()
+    var presets = [CaptureSessionPreset]()
     /// The list of available camera devices.
-    @Published var devices = [AVCaptureDevice]()
+    var devices = [AVCaptureDevice]()
     /// The list of supported video formats.
-    @Published var formats = [VideoCodecType]()
+    var formats = [VideoCodecType]()
     /// The list of available flash modes.
-    @Published var flashModes = [CameraFlashMode]()
+    var flashModes = [CameraFlashMode]()
     /// The currently selected session preset.
-    @Published var selectedPreset = CaptureSessionPreset.photo
+    var selectedPreset = CaptureSessionPreset.photo
     /// The currently selected camera device.
-    @Published var selectedDevice: AVCaptureDevice?
+    var selectedDevice: AVCaptureDevice?
     /// The currently selected video format.
-    @Published var selectedFormat = VideoCodecType.hevc
+    var selectedFormat = VideoCodecType.hevc
     /// The currently selected flash mode.
-    @Published var selectedFlashMode = CameraFlashMode.unavailable
+    var selectedFlashMode = CameraFlashMode.unavailable
     /// The available zoom range for the current device.
-    @Published var zoomRange = 1.0...1.0
+    var zoomRange = 1.0...1.0
     /// The current zoom factor.
-    @Published var zoom: Double = 1.0
+    var zoom: Double = 1.0
 
     // MARK: - Private Properties
-
     /// The underlying camera actor that handles capture operations.
     private let camera: any CameraProtocol
     /// The task that listens for preview frames from the camera.
@@ -103,11 +103,6 @@ public class CameraModel: ObservableObject {
     init(camera: any CameraProtocol = Camera.shared) {
         self.camera = camera
     }
-    
-    deinit {
-        previewTask?.cancel()
-        photoTask?.cancel()
-    }
 
     // MARK: - Public Methods
 
@@ -115,7 +110,7 @@ public class CameraModel: ObservableObject {
     /// Starts the camera, begins listening for previews and photos, and loads initial settings.
     func start() async {
         state = .loading
-        Task(priority: .medium) {
+        Task {
             do {
                 try await camera.start()
                 previewTask = Task { await listenCameraPreviews() }
