@@ -16,16 +16,15 @@ extension EnvironmentValues {
 /// The main SwiftUI view for the camera interface.
 /// It provides a full-screen camera preview, controls for taking photos, and a settings sheet.
 public struct CameraView: View {
-    @Environment(\.dismiss) private var dismiss
 
     /// A closure that is called when the user finishes the capture flow.
     /// - Parameters:
-    ///   - photo: The captured `AVCapturePhoto`, or `nil` if the user cancels.
+    ///   - photo: The captured `Photo`, or `nil` if the user cancels.
     ///   - config: The `CameraConfiguration` at the time of capture.
-    public typealias OnComplete = (AVCapturePhoto?, CameraConfiguration?) -> Void
+    public typealias OnComplete = ((any PhotoData)?, CameraConfiguration?) -> Void
 
     /// The view model that manages the camera state.
-    @StateObject private var model: CameraModel
+    private var model: CameraModel
 
     /// A state variable to control the visibility of the settings sheet.
     @State private var isSettingShown = false
@@ -36,6 +35,8 @@ public struct CameraView: View {
     /// The bundle to use for localizing strings.
     public let bundle: Bundle
 
+    public let dismissOnComplete: Bool
+    
     /// The completion handler to call when the flow is finished.
     public let completion: OnComplete?
 
@@ -43,18 +44,20 @@ public struct CameraView: View {
     /// - Parameters:
     ///   - bundle: The bundle for string localization. Defaults to `.module`.
     ///   - completion: The closure to call upon completion.
-    public init(bundle: Bundle? = nil, completion: OnComplete?) {
+    public init(bundle: Bundle? = nil, dismissOnComplete: Bool = true, completion: OnComplete?) {
         let resolvedBundle = bundle ?? Bundle.module
         self.completion = completion
         self.bundle = resolvedBundle
-        _model = StateObject(wrappedValue: CameraModel())
+        self.dismissOnComplete = dismissOnComplete
+        self.model = CameraModel()
     }
 
     /// Internal initializer for previews and testing.
-    init(model: CameraModel) {
+    init(model: CameraModel, dismissOnComplete: Bool = true) {
         self.completion = nil
-        _model = StateObject(wrappedValue: model)
         self.bundle = .module
+        self.dismissOnComplete = dismissOnComplete
+        self.model = model
     }
 
     public var body: some View {
@@ -71,17 +74,22 @@ public struct CameraView: View {
         .safeAreaInset(edge: .bottom) {
             FooterView(model: model, isSettingShown: $isSettingShown) {
                 model.handleExit()
-                dismiss()
                 completion?(nil, nil)
             }
         }
         .task {
+            print("CameraView appeared for the first time, starting camera...")
             await model.start()
+        }
+        .onDisappear {
+            print("CameraView disappeared, stopping camera...")
+            Task {
+                await model.stop()
+            }
         }
         .onChange(of: model.state) {
             if case .accepted(let accepted) = model.state {
                 completion?(accepted.photo, accepted.config)
-                dismiss()
             }
         }
         .onChange(of: model.error) {
@@ -112,15 +120,15 @@ extension CameraView {
     /// The controls shown depend on the current state of the `CameraModel`.
     struct FooterView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         @Binding var isSettingShown: Bool
-        var onExit: () -> Void
+        var onCancel: (() -> Void)
 
         var body: some View {
             HStack(spacing: 16) {
                 switch model.state {
                 case .previewing:
-                    CloseButton(onExit: onExit)
+                    CancelButton(onCancel: onCancel)
                         .frame(maxWidth: .infinity)
                     SettingsButton(isSettingShown: $isSettingShown)
                         .frame(maxWidth: .infinity)
@@ -140,10 +148,10 @@ extension CameraView {
                 case .unauthorized:
                     OpenSettingsButton()
                         .frame(maxWidth: .infinity)
-                    CloseButton(onExit: onExit)
+                    CancelButton(onCancel: onCancel)
                         .frame(maxWidth: .infinity)
                 case .loading:
-                    CloseButton(onExit: onExit)
+                    CancelButton(onCancel: onCancel)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -160,11 +168,11 @@ extension CameraView {
     }
 
     /// A button to close the camera view.
-    struct CloseButton: View {
+    struct CancelButton: View {
         @Environment(\.bundle) private var bundle
-        var onExit: () -> Void
+        var onCancel: () -> Void
         var body: some View {
-            Button(action: onExit) {
+            Button(action: onCancel) {
                 Image(systemName: "xmark.circle")
             }
             .accessibilityLabel(CameraHelper.stringFrom("accessibility_close_camera", bundle: bundle))
@@ -266,7 +274,7 @@ extension CameraView {
     /// The settings view, presented as a sheet, containing various camera options in a tab view.
     struct SettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         @State private var tabSelection = 1
         @State private var color = Color.blue
         var body: some View {
@@ -314,7 +322,7 @@ extension CameraView {
     /// A settings view for selecting the capture session preset (quality).
     struct PresetSettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_quality", bundle: bundle)).bold()) {
@@ -341,7 +349,7 @@ extension CameraView {
     /// A settings view for selecting the camera device and zoom factor.
     struct DeviceSettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_camera", bundle: bundle)).bold()) {
@@ -371,7 +379,7 @@ extension CameraView {
     /// A settings view for selecting the video codec format.
     struct FormatSettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_format", bundle: bundle)).bold()) {
@@ -390,7 +398,7 @@ extension CameraView {
     /// A settings view for selecting the flash mode.
     struct FlashModeSettingsView: View {
         @Environment(\.bundle) var bundle
-        @ObservedObject var model: CameraModel
+        let model: CameraModel
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_flash_mode", bundle: bundle)).bold()) {

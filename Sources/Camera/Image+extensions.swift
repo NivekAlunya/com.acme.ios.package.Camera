@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import Camera
 
 extension Image.Orientation {
     /// Initializes an `Image.Orientation` from a `CGImagePropertyOrientation`.
@@ -22,6 +23,15 @@ extension Image.Orientation {
 }
 
 extension Image {
+    
+    public init?(photo: any PhotoData) {
+        guard let data = photo.fileDataRepresentation()
+        , let uiImage = UIImage(data: data) else {
+            return nil
+        }
+        
+        self.init(uiImage: uiImage)
+    }
     /// Failable initializer that creates a SwiftUI `Image` from an `AVCapturePhoto`.
     /// This initializer correctly handles the image orientation based on the photo's metadata.
     /// - Parameter avCapturePhoto: The `AVCapturePhoto` to create the image from.
