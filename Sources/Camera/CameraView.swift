@@ -24,7 +24,7 @@ public struct CameraView: View {
     public typealias OnComplete = ((any PhotoData)?, CameraConfiguration?) -> Void
 
     /// The view model that manages the camera state.
-    private var model: CameraModel
+    private let model: CameraModel
 
     /// A state variable to control the visibility of the settings sheet.
     @State private var isSettingShown = false
