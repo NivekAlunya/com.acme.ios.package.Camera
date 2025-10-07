@@ -13,7 +13,7 @@ public struct CameraConfiguration: Hashable {
     // MARK: - Stored Properties
 
     /// The active camera device input.
-    private(set) var deviceInput: AVCaptureDeviceInput?
+    public private(set) var deviceInput: AVCaptureDeviceInput?
 
     /// The rotation coordinator for handling device orientation.
     var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
@@ -37,22 +37,22 @@ public struct CameraConfiguration: Hashable {
     var preset: CaptureSessionPreset = .photo
 
     /// A list of available capture devices for the current position.
-    private(set) var listCaptureDevice = [AVCaptureDevice]()
+    public private(set) var listCaptureDevice = [AVCaptureDevice]()
 
     /// A list of supported video formats for the current device.
-    private(set) var listSupportedFormat = [VideoCodecType]()
+    public private(set) var listSupportedFormat = [VideoCodecType]()
 
     /// A list of available flash modes for the current device.
-    private(set) var listFlashMode = [CameraFlashMode]()
+    public private(set) var listFlashMode = [CameraFlashMode]()
 
     /// A list of supported session presets.
-    private(set) var listPreset = [CaptureSessionPreset]()
+    public private(set) var listPreset = [CaptureSessionPreset]()
 
     /// The available zoom range for the current device.
-    private(set) var zoomRange = 1.0...1.0
+    public private(set) var zoomRange = 1.0...1.0
 
     /// The output for capturing photos.
-    private(set) var photoOutput: AVCapturePhotoOutput
+    public private(set) var photoOutput: AVCapturePhotoOutput
 
     /// The output for capturing video preview frames.
     private let videoOutput = AVCaptureVideoDataOutput()

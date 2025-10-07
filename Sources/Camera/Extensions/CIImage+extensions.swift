@@ -20,7 +20,7 @@ extension CIImage {
     /// as rendering a `CIImage` can be computationally intensive.
     ///
     /// - Returns: A `CGImage` instance, or `nil` if the conversion fails.
-    func toCGImage() async -> CGImage? {
+    public func toCGImage() async -> CGImage? {
         return await Task.detached {
             guard let cgImage = sharedCIContext.createCGImage(self, from: self.extent) else {
                 return nil
