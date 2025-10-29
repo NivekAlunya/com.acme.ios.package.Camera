@@ -6,7 +6,7 @@
 //
 
 /// Represents the errors that can occur during camera operations.
-enum CameraError: Error {
+public enum CameraError: Error {
     /// The required camera device is not available on the current hardware.
     case cameraUnavailable
     /// The user has not granted permission to use the camera.

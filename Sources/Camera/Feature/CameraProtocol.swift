@@ -24,7 +24,7 @@ public protocol CameraProtocol: Actor {
     /// Changes the capture session preset.
     /// - Parameter preset: The `CaptureSessionPreset` to apply.
     func changePreset(preset: CaptureSessionPreset)
-
+    
     /// Changes the active camera device.
     /// - Parameter device: The `AVCaptureDevice` to switch to.
     func changeCamera(device: AVCaptureDevice) async throws
