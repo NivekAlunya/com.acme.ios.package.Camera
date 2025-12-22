@@ -62,15 +62,24 @@ public struct CameraView: View {
 
     public var body: some View {
         ZStack {
-            if model.state == .loading {
-                ProcessingView().font(.largeTitle.bold())
-            } else {
-                ImagePreview(image: model.preview)
+            ImagePreview(image: model.preview)
+        }
+        .overlay {
+            switch model.state {
+            case .processing:
+                ProcessingView()
+                    .font(.largeTitle.bold())
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(.black.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            default:
+                EmptyView()
             }
         }
         .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+//        .background(Color.black)
         .safeAreaInset(edge: .bottom) {
             FooterView(model: model, isSettingShown: $isSettingShown) {
                 model.handleExit()
@@ -119,52 +128,49 @@ extension CameraView {
     /// The footer view that contains the main camera controls.
     /// The controls shown depend on the current state of the `CameraModel`.
     struct FooterView: View {
+        @Namespace private var namespace
         @Environment(\.bundle) var bundle
         let model: CameraModel
         @Binding var isSettingShown: Bool
         var onCancel: (() -> Void)
 
         var body: some View {
-            HStack(spacing: 16) {
-                switch model.state {
-                case .previewing:
-                    CancelButton(onCancel: onCancel)
-                        .frame(maxWidth: .infinity)
-                    SettingsButton(isSettingShown: $isSettingShown)
-                        .frame(maxWidth: .infinity)
-                    SwitchPositionButton(action: model.handleSwitchPosition)
-                        .frame(maxWidth: .infinity)
-                    TakePhotoButton(action: model.handleTakePhoto)
-                        .frame(maxWidth: .infinity)
-                case .processing:
-                    ProcessingView()
-                case .validating:
-                    RejectButton(action: model.handleRejectPhoto)
-                        .frame(maxWidth: .infinity)
-                    AcceptButton(action: model.handleAcceptPhoto)
-                        .frame(maxWidth: .infinity)
-                case .accepted:
-                    ProcessingView()
-                case .unauthorized:
-                    OpenSettingsButton()
-                        .frame(maxWidth: .infinity)
-                    CancelButton(onCancel: onCancel)
-                        .frame(maxWidth: .infinity)
-                case .loading:
-                    CancelButton(onCancel: onCancel)
-                        .frame(maxWidth: .infinity)
+            
+            GlassEffectContainer {
+                HStack(spacing: 16) {
+                    Group {
+                        switch model.state {
+                        case .previewing:
+                            CancelButton(onCancel: onCancel)
+                            SettingsButton(isSettingShown: $isSettingShown)
+                            SwitchPositionButton(action: model.handleSwitchPosition)
+                            TakePhotoButton(action: model.handleTakePhoto)
+                        case .processing, .loading, .accepted:
+                            EmptyView()
+                        case .validating:
+                            RejectButton(action: model.handleRejectPhoto)
+                                .frame(maxWidth: .infinity)
+                            AcceptButton(action: model.handleAcceptPhoto)
+                                .frame(maxWidth: .infinity)
+                        case .unauthorized:
+                            OpenSettingsButton()
+                                .frame(maxWidth: .infinity)
+                            CancelButton(onCancel: onCancel)
+                                .frame(maxWidth: .infinity)
+                        case .loading:
+                            CancelButton(onCancel: onCancel)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding()
+                    .font(.title.bold())
+                    .glassEffect(.clear)
+                    .glassEffectUnion(id: 1, namespace: namespace)
                 }
+                .padding()
             }
-            .font(.largeTitle)
-            .symbolRenderingMode(.multicolor)
-            .padding(.horizontal)
-            .padding(.top)
-            .frame(maxWidth: .infinity)
-            .background {
-                Color.black.opacity(0.5)
-                    .ignoresSafeArea(edges: [.bottom, .trailing, .leading])
-            }
-        }
+        }	
     }
 
     /// A button to close the camera view.
@@ -234,7 +240,6 @@ extension CameraView {
                 Image(systemName: "circle.circle.fill")
             }
             .accessibilityLabel(CameraHelper.stringFrom("accessibility_take_photo", bundle: bundle))
-            .glassEffect(.regular)
         }
     }
 
@@ -266,7 +271,6 @@ extension CameraView {
     struct ProcessingView: View {
         var body: some View {
             Image(systemName: "arrow.clockwise")
-                .foregroundStyle(Color.orange)
                 .symbolEffect(.rotate)
         }
     }
@@ -449,14 +453,41 @@ extension CameraView {
     }
 }
 
+#if DEBUG
+
+class CameraModelMock: CameraModel {
+    override init(camera: any CameraProtocol = MockCamera()) {
+        super.init(camera: camera)
+        self.state = .previewing
+        self.preview = Image(systemName: "camera.fill")
+    }
+    
+    override func start() async {
+        // No-op for mock
+    }
+    
+    override func stop() async {
+        // No-op for mock
+        state = .loading
+    }
+    override func handleTakePhoto() {
+        // No-op for mock
+        state = .validating
+    }
+    
+}
+
 #Preview {
-    let mockCamera = MockCamera()
-    let cameraModel = CameraModel(camera: mockCamera)
-    return CameraView(model: cameraModel)
+    let cameraModel = CameraModelMock()
+
+    return ZStack {
+        CameraView(model: cameraModel)
+    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Color.red)
 }
 
 #Preview(traits: .landscapeLeft) {
-    let mockCamera = MockCamera()
-    let cameraModel = CameraModel(camera: mockCamera)
+    let cameraModel = CameraModelMock()
     return CameraView(model: cameraModel)
 }
+#endif // DEBUG
