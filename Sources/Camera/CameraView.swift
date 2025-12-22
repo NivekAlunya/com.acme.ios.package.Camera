@@ -170,7 +170,7 @@ extension CameraView {
                 }
                 .padding()
             }
-        }	
+        }
     }
 
     /// A button to close the camera view.
