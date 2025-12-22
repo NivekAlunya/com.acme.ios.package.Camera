@@ -155,9 +155,6 @@ extension CameraView {
                                 .frame(maxWidth: .infinity)
                             CancelButton(onCancel: onCancel)
                                 .frame(maxWidth: .infinity)
-                        case .loading:
-                            CancelButton(onCancel: onCancel)
-                                .frame(maxWidth: .infinity)
                         }
                     }
                     .buttonStyle(.plain)
