@@ -79,7 +79,6 @@ public struct CameraView: View {
         }
         .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-//        .background(Color.black)
         .safeAreaInset(edge: .bottom) {
             FooterView(model: model, isSettingShown: $isSettingShown) {
                 model.handleExit()
