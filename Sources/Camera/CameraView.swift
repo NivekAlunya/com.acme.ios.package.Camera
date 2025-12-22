@@ -134,7 +134,6 @@ extension CameraView {
         var onCancel: (() -> Void)
 
         var body: some View {
-            
             GlassEffectContainer {
                 HStack(spacing: 16) {
                     Group {
