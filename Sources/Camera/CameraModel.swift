@@ -87,7 +87,7 @@ public class CameraModel {
     var zoomRange = 1.0...1.0
     /// The current zoom factor.
     var zoom: Double = 1.0
-    /// The aspect rationo of the camera preview.
+    /// The aspect ratio of the camera preview.
     var ratio: CaptureSessionAspectRatio = .defaultAspectRatio
 
     // MARK: - Private Properties

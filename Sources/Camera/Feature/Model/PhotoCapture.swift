@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  PhotoCapture.swift
 //  Camera
 //
 //  Created by Kevin Launay on 22/01/2026.

@@ -60,5 +60,5 @@ public protocol CameraProtocol: Actor {
     func changePosition() async throws
     /// Changes the aspect ratio for the capture session.
     /// - Parameter ratio: The `CaptureSessionAspectRatio` to use.
-    func changeRatio(_ ratio: CaptureSessionAspectRatio)
+    func changeRatio(_ ratio: CaptureSessionAspectRatio) async
 }

@@ -56,6 +56,17 @@
         }
       }
     },
+    "accessibility_switch_ratio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch aspect ratio"
+          }
+        }
+      }
+    },
     "accessibility_take_photo" : {
       "extractionState" : "manual",
       "localizations" : {
