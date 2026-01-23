@@ -15,7 +15,7 @@ public enum CaptureSessionAspectRatio: CaseIterable, Sendable {
     case defaultAspectRatio
     
     /// A computed property that returns a localization key for each aspect ratio.
-    var stringKey: String {
+    public var stringKey: String {
         switch self {
         case .ratio_4_3: "aspect_ratio_4_3"
         case .ratio_16_9: "aspect_ratio_16_9"
