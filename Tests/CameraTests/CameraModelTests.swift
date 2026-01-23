@@ -34,9 +34,9 @@ struct CameraModelTests {
         let mock = MockCamera(previewImages: [], photoImages: [ciImage])
         let model = CameraModel(camera: mock)
         await model.start()
-        model.handleTakePhoto()
-        await Task.yield()
+        await model.handleTakePhoto()
         #expect(model.state == .validating, "CameraModel should be in validating state after taking a photo")
+
         #expect(model.preview != nil, "Preview should be updated after taking a photo")
     }
 
@@ -47,9 +47,9 @@ struct CameraModelTests {
         let model = CameraModel(camera: mock)
         await model.start()
         let initialPosition = await model.position
-        model.handleSwitchPosition()
-        await Task.yield()
+        await model.handleSwitchPosition()
         let newPosition = await model.position
+
         #expect(initialPosition != newPosition, "Camera position should have changed")
     }
 
@@ -102,16 +102,15 @@ struct CameraModelTests {
         let mock = MockCamera(previewImages: [], photoImages: [ciImage])
         let model = CameraModel(camera: mock)
         await model.start()
-        model.handleTakePhoto()
-        await Task.yield()
+        await model.handleTakePhoto()
 
         let photo = await mock.photo
         #expect(photo != nil, "Photo should have been taken")
 
-        model.handleAcceptPhoto()
-        await Task.yield()
+        await model.handleAcceptPhoto()
 
         #expect(model.state == .accepted((photo, await mock.config)), "CameraModel should be in accepted state")
+
     }
 
     @Test("CameraModel rejects photo")
@@ -123,8 +122,8 @@ struct CameraModelTests {
         await model.start()
         model.handleTakePhoto()
         await Task.yield()
-        model.handleRejectPhoto()
-        await Task.yield()
+        await model.handleRejectPhoto()
         #expect(model.state == .previewing, "CameraModel should be in previewing state after rejecting a photo")
+
     }
 }
