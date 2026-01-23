@@ -16,12 +16,13 @@ extension EnvironmentValues {
 /// The main SwiftUI view for the camera interface.
 /// It provides a full-screen camera preview, controls for taking photos, and a settings sheet.
 public struct CameraView: View {
-
+    @Environment(\.colorScheme) private var colorScheme
+    
     /// A closure that is called when the user finishes the capture flow.
     /// - Parameters:
     ///   - photo: The captured `Photo`, or `nil` if the user cancels.
     ///   - config: The `CameraConfiguration` at the time of capture.
-    public typealias OnComplete = ((any PhotoData)?, CameraConfiguration?) -> Void
+    public typealias OnComplete = (PhotoCapture?, CameraConfiguration?) -> Void
 
     /// The view model that manages the camera state.
     private let model: CameraModel
@@ -61,8 +62,25 @@ public struct CameraView: View {
     }
 
     public var body: some View {
-        ZStack {
-            ImagePreview(image: model.preview)
+        GeometryReader { reader in
+            ZStack {
+                ImagePreview(image: model.preview)
+                    .overlay(alignment: .center) {
+                        if let targetSize = model.ratio.targetSize(for: reader.size) {
+                            ZStack {
+                                Color.black.opacity(0.8)
+                                Rectangle()
+                                    .blendMode(.destinationOut)
+                                    .frame(width: targetSize.width, height: targetSize.height)
+                            }
+                            .compositingGroup()
+                        }
+                    }
+
+                                
+            }
+            .background(Color(UIColor.systemBackground))
+            
         }
         .overlay {
             switch model.state {
@@ -118,6 +136,14 @@ public struct CameraView: View {
             SettingsView(model: model)
         }
         .environment(\.bundle, bundle)
+        .onChange(of: colorScheme) { oldValue, newValue in
+            Task {
+                await model.stop()
+                await model.start()
+            }
+        }
+        .colorScheme(.dark) // Force dark mode for better camera preview visibility
+
     }
 }
 
@@ -141,8 +167,16 @@ extension CameraView {
                         case .previewing:
                             CancelButton(onCancel: onCancel)
                             SettingsButton(isSettingShown: $isSettingShown)
-                            SwitchPositionButton(action: model.handleSwitchPosition)
-                            TakePhotoButton(action: model.handleTakePhoto)
+                            SwitchRatioButton(ratio: model.ratio) {
+                                Task { await model.handleSwitchRatio() }
+                            }
+                            SwitchPositionButton {
+                                Task { await model.handleSwitchPosition() }
+                            }
+                            TakePhotoButton {
+                                Task { await model.handleTakePhoto() }
+                            }
+
                         case .processing, .loading, .accepted:
                             EmptyView()
                         case .validating:
@@ -220,12 +254,25 @@ extension CameraView {
         var action: () -> Void
         var body: some View {
             Button(action: action) {
-                Image(systemName: "arrow.triangle.2.circlepath.camera")
+                //"iphone.rear.camera"
+                Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
             }
             .accessibilityLabel(CameraHelper.stringFrom("accessibility_switch_front_back", bundle: bundle))
         }
     }
 
+    struct SwitchRatioButton: View {
+        @Environment(\.bundle) private var bundle
+        let ratio: CaptureSessionAspectRatio
+        var action: () -> Void
+        var body: some View {
+            Button(action: action) {
+                Image(systemName: ratio.getSfSymbol())
+            }
+            .accessibilityLabel(CameraHelper.stringFrom("accessibility_switch_ratio", bundle: bundle))
+        }
+    }
+    
     /// The main button to capture a photo.
     struct TakePhotoButton: View {
         @Environment(\.bundle) private var bundle
