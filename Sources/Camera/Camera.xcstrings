@@ -56,6 +56,17 @@
         }
       }
     },
+    "accessibility_switch_ratio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch aspect ratio"
+          }
+        }
+      }
+    },
     "accessibility_take_photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -96,6 +107,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "An error occurred when using the camera"
+          }
+        }
+      }
+    },
+    "aspect_ratio_1_1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1:1"
+          }
+        }
+      }
+    },
+    "aspect_ratio_4_3" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4:3"
+          }
+        }
+      }
+    },
+    "aspect_ratio_16_9" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "16:9"
+          }
+        }
+      }
+    },
+    "aspect_ratio_default" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default"
           }
         }
       }

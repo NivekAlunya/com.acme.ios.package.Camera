@@ -97,8 +97,8 @@ public actor Camera: NSObject {
         guard let ciImage = photo.buildImageForRatio(config.ratio) else {
             return
         }
-        
-        let data = context.jpegRepresentation(of: ciImage, colorSpace: ciImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!, options: [:])
+        let colorSpace = ciImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let data = context.jpegRepresentation(of: ciImage, colorSpace: colorSpace, options: [:])
         
         self.photo = PhotoCapture(data: data, metadata: photo.metadata)
         
@@ -109,7 +109,7 @@ public actor Camera: NSObject {
 // MARK: - CameraProtocol Conformance
 extension Camera: CameraProtocol {
     
-    public func changeRatio(_ ratio: CaptureSessionAspectRatio) {
+    public func changeRatio(_ ratio: CaptureSessionAspectRatio) async {
         self.config.ratio = ratio
     }
 

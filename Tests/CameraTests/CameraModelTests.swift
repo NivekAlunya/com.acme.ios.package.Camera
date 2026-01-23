@@ -97,6 +97,34 @@ struct CameraModelTests {
         #expect(newCodec == .proRes422, "New video codec should be proRes422")
     }
 
+    @Test("CameraModel switches aspect ratio")
+    @MainActor
+    func testSwitchAspectRatio() async throws {
+        let mock = MockCamera()
+        let model = CameraModel(camera: mock)
+        await model.start()
+        
+        // Test cycling through all aspect ratios
+        let initialRatio = await model.ratio
+        #expect(initialRatio == .defaultAspectRatio, "Initial ratio should be defaultAspectRatio")
+        
+        await model.handleSwitchRatio()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        #expect(model.ratio == .ratio_1_1, "Ratio should switch to 1:1")
+        
+        await model.handleSwitchRatio()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        #expect(model.ratio == .ratio_4_3, "Ratio should switch to 4:3")
+        
+        await model.handleSwitchRatio()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        #expect(model.ratio == .ratio_16_9, "Ratio should switch to 16:9")
+        
+        await model.handleSwitchRatio()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        #expect(model.ratio == .defaultAspectRatio, "Ratio should cycle back to default")
+    }
+
 
     @Test("CameraModel accepts photo")
     @MainActor

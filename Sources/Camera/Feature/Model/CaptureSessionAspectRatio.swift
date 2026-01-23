@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  CaptureSessionAspectRatio.swift
 //  Camera
 //
 //  Created by Kevin Launay on 22/01/2026.
@@ -8,11 +8,21 @@
 import Foundation
 
 
-public enum CaptureSessionAspectRatio {
+public enum CaptureSessionAspectRatio: CaseIterable, Sendable {
     case ratio_4_3
     case ratio_16_9
     case ratio_1_1
     case defaultAspectRatio
+    
+    /// A computed property that returns a localization key for each aspect ratio.
+    var stringKey: String {
+        switch self {
+        case .ratio_4_3: "aspect_ratio_4_3"
+        case .ratio_16_9: "aspect_ratio_16_9"
+        case .ratio_1_1: "aspect_ratio_1_1"
+        case .defaultAspectRatio: "aspect_ratio_default"
+        }
+    }
     
     func getSfSymbol() -> String {
         
