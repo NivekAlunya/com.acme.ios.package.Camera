@@ -112,23 +112,27 @@ public class CameraModel {
     /// Starts the camera, begins listening for previews and photos, and loads initial settings.
     func start() async {
         state = .loading
-        Task {
-            do {
-                self.ratio = await camera.config.ratio
-                try await camera.start()
-                previewTask = Task { await listenCameraPreviews() }
-                photoTask = Task { await listenPhotoCapture() }
-                await loadSettings()
-            } catch (let error as CameraError) {
-                if error == .cameraUnauthorized {
-                    state = .unauthorized
-                }
-                self.error = error
-            } catch {
-                // Handle other potential errors if necessary
+        do {
+            self.ratio = await camera.config.ratio
+            
+            try await camera.start()
+            
+            previewTask = Task { await listenCameraPreviews() }
+            photoTask = Task { await listenPhotoCapture() }
+            
+            await loadSettings()
+        } catch (let error as CameraError) {
+
+            if error == .cameraUnauthorized {
+                state = .unauthorized
             }
+            self.error = error
+        } catch {
+            // Handle other potential errors if necessary
         }
     }
+
+
     func stop() async {
         await camera.end()
     }
@@ -160,9 +164,10 @@ public class CameraModel {
 
     
     /// Handles the user exiting the camera view.
-    func handleExit() {
-        exit()
+    func handleExit() async {
+        await exit()
     }
+
     
     /// Handles the user switching the camera position (front/back).
     func handleSwitchPosition() async {

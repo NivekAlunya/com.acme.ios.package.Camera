@@ -66,7 +66,8 @@ public struct CameraView: View {
             ZStack {
                 ImagePreview(image: model.preview)
                     .overlay(alignment: .center) {
-                        if let targetSize = model.ratio.targetSize(for: reader.size) {
+                        if reader.size.width > 0 && reader.size.height > 0,
+                           let targetSize = model.ratio.targetSize(for: reader.size) {
                             ZStack {
                                 Color.black.opacity(0.8)
                                 Rectangle()
@@ -76,6 +77,7 @@ public struct CameraView: View {
                             .compositingGroup()
                         }
                     }
+
 
                                 
             }
@@ -99,10 +101,11 @@ public struct CameraView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
             FooterView(model: model, isSettingShown: $isSettingShown) {
-                model.handleExit()
+                Task { await model.handleExit() }
                 completion?(nil, nil)
             }
         }
+
         .task {
             print("CameraView appeared for the first time, starting camera...")
             await model.start()
@@ -180,11 +183,16 @@ extension CameraView {
                         case .processing, .loading, .accepted:
                             EmptyView()
                         case .validating:
-                            RejectButton(action: model.handleRejectPhoto)
-                                .frame(maxWidth: .infinity)
-                            AcceptButton(action: model.handleAcceptPhoto)
-                                .frame(maxWidth: .infinity)
+                            RejectButton {
+                                Task { await model.handleRejectPhoto() }
+                            }
+                            .frame(maxWidth: .infinity)
+                            AcceptButton {
+                                Task { await model.handleAcceptPhoto() }
+                            }
+                            .frame(maxWidth: .infinity)
                         case .unauthorized:
+
                             OpenSettingsButton()
                                 .frame(maxWidth: .infinity)
                             CancelButton(onCancel: onCancel)
@@ -512,10 +520,11 @@ class CameraModelMock: CameraModel {
         // No-op for mock
         state = .loading
     }
-    override func handleTakePhoto() {
+    override func handleTakePhoto() async {
         // No-op for mock
         state = .validating
     }
+
     
 }
 

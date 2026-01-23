@@ -67,10 +67,15 @@ actor MockCamera: CameraProtocol {
 
     /// Simulates starting the camera by emitting the `previewImages`.
     func start() async throws {
-        for image in previewImages {
-            await stream.emitPreview(image)
+        Task {
+            for image in previewImages {
+                await stream.emitPreview(image)
+                // Small delay to simulate real camera frame rate and allow listeners to catch up
+                try? await Task.sleep(nanoseconds: 10_000_000)
+            }
         }
     }
+
 
     func resume() async {
         // No-op for mock
