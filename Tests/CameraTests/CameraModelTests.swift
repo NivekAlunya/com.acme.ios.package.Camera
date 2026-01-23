@@ -109,22 +109,18 @@ struct CameraModelTests {
         #expect(initialRatio == .defaultAspectRatio, "Initial ratio should be defaultAspectRatio")
         
         await model.handleSwitchRatio()
-        try? await Task.sleep(nanoseconds: 50_000_000)
         let ratio1 = await model.ratio
         #expect(ratio1 == .ratio_1_1, "After first switch, ratio should be 1:1")
         
         await model.handleSwitchRatio()
-        try? await Task.sleep(nanoseconds: 50_000_000)
         let ratio2 = await model.ratio
         #expect(ratio2 == .ratio_4_3, "After second switch, ratio should be 4:3")
         
         await model.handleSwitchRatio()
-        try? await Task.sleep(nanoseconds: 50_000_000)
         let ratio3 = await model.ratio
         #expect(ratio3 == .ratio_16_9, "After third switch, ratio should be 16:9")
         
         await model.handleSwitchRatio()
-        try? await Task.sleep(nanoseconds: 50_000_000)
         let ratio4 = await model.ratio
         #expect(ratio4 == .defaultAspectRatio, "After fourth switch, ratio should cycle back to default")
     }
