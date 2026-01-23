@@ -19,7 +19,7 @@ public protocol CameraProtocol: Actor {
     var config: CameraConfiguration { get }
 
     /// The most recently captured photo.
-    var photo: (any PhotoData)? { get }
+    var photo: PhotoCapture? { get }
 
     /// Changes the capture session preset.
     /// - Parameter preset: The `CaptureSessionPreset` to apply.
@@ -58,4 +58,7 @@ public protocol CameraProtocol: Actor {
 
     /// Switches between the front and back cameras.
     func changePosition() async throws
+    /// Changes the aspect ratio for the capture session.
+    /// - Parameter ratio: The `CaptureSessionAspectRatio` to use.
+    func changeRatio(_ ratio: CaptureSessionAspectRatio)
 }
