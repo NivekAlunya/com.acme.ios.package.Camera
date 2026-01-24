@@ -12,6 +12,11 @@ import Foundation
 /// A mock implementation of the `CameraProtocol` for testing and SwiftUI previews.
 /// This actor simulates the behavior of the real camera, allowing for UI development and testing without a physical device.
 actor MockCamera: CameraProtocol {
+    func changeRatio(_ ratio: CaptureSessionAspectRatio) async {
+        config.ratio = ratio
+    }
+
+    
 
     /// An array of `CIImage`s to be used for the preview stream.
     var previewImages: [CIImage]
@@ -26,7 +31,7 @@ actor MockCamera: CameraProtocol {
     var stream: any CameraStreamProtocol
 
     /// A placeholder for a captured photo.
-    var photo: (any PhotoData)?
+    var photo: PhotoCapture?
 
     /// Initializes a `MockCamera`.
     /// - Parameters:
@@ -37,7 +42,7 @@ actor MockCamera: CameraProtocol {
         configuration: CameraConfiguration = CameraConfiguration(),
         previewImages: [CIImage] = [],
         photoImages: [CIImage] = [],
-        photo: (any PhotoData)? = nil
+        photo: PhotoCapture? = nil
     ) {
         self.config = configuration
         self.stream = CameraStream()
@@ -64,8 +69,11 @@ actor MockCamera: CameraProtocol {
     func start() async throws {
         for image in previewImages {
             await stream.emitPreview(image)
+            // Small delay to simulate real camera frame rate and allow listeners to catch up
+            try? await Task.sleep(nanoseconds: 10_000_000)
         }
     }
+
 
     func resume() async {
         // No-op for mock
@@ -82,7 +90,7 @@ actor MockCamera: CameraProtocol {
             photoImages.removeFirst()
             let context = CIContext()
             if let data = context.pngRepresentation(of: image, format: .RGBA8, colorSpace: image.colorSpace ?? CGColorSpaceCreateDeviceRGB()) {
-                self.photo = MockPhoto(data: data)
+                self.photo = PhotoCapture(data: data, metadata: [:])
             }
             await stream.emitPhoto(image)
         }

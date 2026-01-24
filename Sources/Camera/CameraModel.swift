@@ -17,7 +17,7 @@ import SwiftUI
 @MainActor
 public class CameraModel {
     /// A type alias for the data captured when a photo is taken.
-    typealias Capture = (photo: (any PhotoData)?, config: CameraConfiguration?)
+    typealias Capture = (photo: PhotoCapture?, config: CameraConfiguration?)
 
     // MARK: - State Management
 
@@ -29,7 +29,7 @@ public class CameraModel {
             case (.accepted(let a), .accepted(let b)):
                 // We only compare the photo data here. The configuration contains references
                 // to AVFoundation objects that are not easily comparable in a test environment.
-                return String(describing: a.photo?.getMetadata()) == String(describing: b.photo?.getMetadata())
+                return String(describing: a.photo?.metadata) == String(describing: b.photo?.metadata)
             case (.loading, .loading),
                  (.previewing, .previewing),
                  (.processing, .processing),
@@ -87,6 +87,8 @@ public class CameraModel {
     var zoomRange = 1.0...1.0
     /// The current zoom factor.
     var zoom: Double = 1.0
+    /// The aspect ratio of the camera preview.
+    var ratio: CaptureSessionAspectRatio = .defaultAspectRatio
 
     // MARK: - Private Properties
     /// The underlying camera actor that handles capture operations.
@@ -110,22 +112,27 @@ public class CameraModel {
     /// Starts the camera, begins listening for previews and photos, and loads initial settings.
     func start() async {
         state = .loading
-        Task {
-            do {
-                try await camera.start()
-                previewTask = Task { await listenCameraPreviews() }
-                photoTask = Task { await listenPhotoCapture() }
-                await loadSettings()
-            } catch (let error as CameraError) {
-                if error == .cameraUnauthorized {
-                    state = .unauthorized
-                }
-                self.error = error
-            } catch {
-                // Handle other potential errors if necessary
+        do {
+            self.ratio = await camera.config.ratio
+            
+            try await camera.start()
+            
+            previewTask = Task { await listenCameraPreviews() }
+            photoTask = Task { await listenPhotoCapture() }
+            
+            await loadSettings()
+        } catch (let error as CameraError) {
+
+            if error == .cameraUnauthorized {
+                state = .unauthorized
             }
+            self.error = error
+        } catch {
+            // Handle other potential errors if necessary
         }
     }
+
+
     func stop() async {
         await camera.end()
     }
@@ -133,42 +140,59 @@ public class CameraModel {
     // MARK: - User Actions
 
     /// Handles the user tapping the "take photo" button.
-    func handleTakePhoto() {
-        Task {
-            state = .processing
-            await camera.takePhoto()
-        }
+    func handleTakePhoto() async {
+        state = .processing
+        await camera.takePhoto()
     }
 
-    /// Handles the user exiting the camera view.
-    func handleExit() {
-        exit()
+
+    func handleSwitchRatio() async {
+        let newRatio: CaptureSessionAspectRatio
+        switch ratio {
+        case .ratio_1_1:
+            newRatio = .ratio_4_3
+        case .ratio_4_3:
+            newRatio = .ratio_16_9
+        case .ratio_16_9:
+            newRatio = .defaultAspectRatio
+        default:
+            newRatio = .ratio_1_1
+        }
+        ratio = newRatio
+        await camera.changeRatio(newRatio)
     }
+
+    
+    /// Handles the user exiting the camera view.
+    func handleExit() async {
+        await exit()
+    }
+
     
     /// Handles the user switching the camera position (front/back).
-    func handleSwitchPosition() {
-        Task {
-            do {
-                try await camera.changePosition()
-                await loadSettings()
-                self.position = await camera.config.position
-            } catch (let error as CameraError) {
-                self.error = error
-            } catch {
-                // Handle other potential errors
-            }
+    func handleSwitchPosition() async {
+        do {
+            try await camera.changePosition()
+            await loadSettings()
+            self.position = await camera.config.position
+        } catch (let error as CameraError) {
+            self.error = error
+        } catch {
+            // Handle other potential errors
         }
     }
 
+
     /// Handles the user accepting the captured photo.
-    func handleAcceptPhoto() {
-        acceptPhoto()
+    func handleAcceptPhoto() async {
+        await acceptPhoto()
     }
     
     /// Handles the user rejecting the captured photo.
-    func handleRejectPhoto() {
-        resetPhoto()
+    func handleRejectPhoto() async {
+        await resetPhoto()
     }
+
     
     // MARK: - Settings Selection
 
@@ -286,29 +310,26 @@ public class CameraModel {
     }
     
     /// Cleans up resources and ends the camera session.
-    private func exit() {
+    private func exit() async {
         previewTask?.cancel()
         photoTask?.cancel()
         capture = nil
-        Task {
-            await camera.end()
-        }
+        await camera.end()
     }
+
     
     /// Sets the state to `accepted` with the captured photo and exits.
-    private func acceptPhoto() {
-        Task {
-            let (photo, config) = (await camera.photo, await camera.config)
-            state = .accepted((photo: photo, config: config))
-            exit()
-        }
+    private func acceptPhoto() async {
+        let (photo, config) = (await camera.photo, await camera.config)
+        state = .accepted((photo: photo, config: config))
+        await exit()
     }
+
     
     /// Resumes the camera preview after a photo was rejected.
-    public func resetPhoto() {
-        Task {
-            state = .previewing
-            await camera.resume()
-        }
+    public func resetPhoto() async {
+        state = .previewing
+        await camera.resume()
     }
+
 }

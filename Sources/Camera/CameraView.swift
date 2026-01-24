@@ -16,12 +16,12 @@ extension EnvironmentValues {
 /// The main SwiftUI view for the camera interface.
 /// It provides a full-screen camera preview, controls for taking photos, and a settings sheet.
 public struct CameraView: View {
-
+    
     /// A closure that is called when the user finishes the capture flow.
     /// - Parameters:
     ///   - photo: The captured `Photo`, or `nil` if the user cancels.
     ///   - config: The `CameraConfiguration` at the time of capture.
-    public typealias OnComplete = ((any PhotoData)?, CameraConfiguration?) -> Void
+    public typealias OnComplete = (PhotoCapture?, CameraConfiguration?) -> Void
 
     /// The view model that manages the camera state.
     private let model: CameraModel
@@ -61,8 +61,25 @@ public struct CameraView: View {
     }
 
     public var body: some View {
-        ZStack {
-            ImagePreview(image: model.preview)
+        GeometryReader { reader in
+            ZStack {
+                ImagePreview(image: model.preview)
+                    .overlay(alignment: .center) {
+                        if reader.size.width > 0 && reader.size.height > 0,
+                           let targetSize = model.ratio.targetSize(for: reader.size) {
+                            ZStack {
+                                Color.black.opacity(0.8)
+                                Rectangle()
+                                    .blendMode(.destinationOut)
+                                    .frame(width: targetSize.width, height: targetSize.height)
+                            }
+                            .compositingGroup()
+                        }
+                    }
+
+            }
+            .background(Color(UIColor.systemBackground))
+            
         }
         .overlay {
             switch model.state {
@@ -81,10 +98,11 @@ public struct CameraView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
             FooterView(model: model, isSettingShown: $isSettingShown) {
-                model.handleExit()
+                Task { await model.handleExit() }
                 completion?(nil, nil)
             }
         }
+
         .task {
             print("CameraView appeared for the first time, starting camera...")
             await model.start()
@@ -118,6 +136,8 @@ public struct CameraView: View {
             SettingsView(model: model)
         }
         .environment(\.bundle, bundle)
+        .colorScheme(.dark) // Force dark mode for better camera preview visibility
+
     }
 }
 
@@ -141,16 +161,29 @@ extension CameraView {
                         case .previewing:
                             CancelButton(onCancel: onCancel)
                             SettingsButton(isSettingShown: $isSettingShown)
-                            SwitchPositionButton(action: model.handleSwitchPosition)
-                            TakePhotoButton(action: model.handleTakePhoto)
+                            SwitchRatioButton(ratio: model.ratio) {
+                                Task { await model.handleSwitchRatio() }
+                            }
+                            SwitchPositionButton {
+                                Task { await model.handleSwitchPosition() }
+                            }
+                            TakePhotoButton {
+                                Task { await model.handleTakePhoto() }
+                            }
+
                         case .processing, .loading, .accepted:
                             EmptyView()
                         case .validating:
-                            RejectButton(action: model.handleRejectPhoto)
-                                .frame(maxWidth: .infinity)
-                            AcceptButton(action: model.handleAcceptPhoto)
-                                .frame(maxWidth: .infinity)
+                            RejectButton {
+                                Task { await model.handleRejectPhoto() }
+                            }
+                            .frame(maxWidth: .infinity)
+                            AcceptButton {
+                                Task { await model.handleAcceptPhoto() }
+                            }
+                            .frame(maxWidth: .infinity)
                         case .unauthorized:
+
                             OpenSettingsButton()
                                 .frame(maxWidth: .infinity)
                             CancelButton(onCancel: onCancel)
@@ -220,12 +253,24 @@ extension CameraView {
         var action: () -> Void
         var body: some View {
             Button(action: action) {
-                Image(systemName: "arrow.triangle.2.circlepath.camera")
+                Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
             }
             .accessibilityLabel(CameraHelper.stringFrom("accessibility_switch_front_back", bundle: bundle))
         }
     }
 
+    struct SwitchRatioButton: View {
+        @Environment(\.bundle) private var bundle
+        let ratio: CaptureSessionAspectRatio
+        var action: () -> Void
+        var body: some View {
+            Button(action: action) {
+                Image(systemName: ratio.getSfSymbol())
+            }
+            .accessibilityLabel(CameraHelper.stringFrom("accessibility_switch_ratio", bundle: bundle))
+        }
+    }
+    
     /// The main button to capture a photo.
     struct TakePhotoButton: View {
         @Environment(\.bundle) private var bundle
@@ -465,10 +510,11 @@ class CameraModelMock: CameraModel {
         // No-op for mock
         state = .loading
     }
-    override func handleTakePhoto() {
+    override func handleTakePhoto() async {
         // No-op for mock
         state = .validating
     }
+
     
 }
 

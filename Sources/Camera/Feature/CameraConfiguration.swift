@@ -8,7 +8,8 @@
 import AVFoundation
 
 /// A struct that holds all the configuration settings for the camera.
-public struct CameraConfiguration: Hashable {
+public struct CameraConfiguration: Hashable, @unchecked Sendable {
+
 
     // MARK: - Stored Properties
 
@@ -35,6 +36,9 @@ public struct CameraConfiguration: Hashable {
 
     /// The session preset for capture quality.
     var preset: CaptureSessionPreset = .photo
+    
+    /// The aspect ratio for the capture session.
+    public var ratio: CaptureSessionAspectRatio = .defaultAspectRatio
 
     /// A list of available capture devices for the current position.
     public private(set) var listCaptureDevice = [AVCaptureDevice]()
@@ -62,6 +66,7 @@ public struct CameraConfiguration: Hashable {
 
     /// The maximum zoom factor allowed.
     private let maxZoom = 25.0
+    
 
     // MARK: - Initialization
 
@@ -73,7 +78,8 @@ public struct CameraConfiguration: Hashable {
         position: AVCaptureDevice.Position = .back,
         quality: AVCapturePhotoOutput.QualityPrioritization = .balanced,
         preset: CaptureSessionPreset = .photo,
-        photoOutput: AVCapturePhotoOutput = AVCapturePhotoOutput()
+        photoOutput: AVCapturePhotoOutput = AVCapturePhotoOutput(),
+        aspectRatio: CaptureSessionAspectRatio = .defaultAspectRatio
     ) {
         self.deviceInput = deviceInput
         self.flashMode = flashMode
@@ -83,6 +89,7 @@ public struct CameraConfiguration: Hashable {
         self.quality = quality
         self.preset = preset
         self.photoOutput = photoOutput
+        self.ratio = aspectRatio
         refreshAvailableDevices()
     }
 

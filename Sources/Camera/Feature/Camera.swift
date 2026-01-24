@@ -27,7 +27,9 @@ private enum CameraState {
 /// It handles the capture session, device configuration, and data output for video and photos.
 /// This actor is a singleton to ensure that only one instance manages the camera hardware at a time.
 public actor Camera: NSObject {
-
+    
+    private let context = CIContext(options: nil)
+    
     /// The shared singleton instance of the `Camera`.
     public static let shared = Camera()
 
@@ -38,7 +40,7 @@ public actor Camera: NSObject {
     public var stream: any CameraStreamProtocol = CameraStream()
 
     /// The most recently captured photo.
-    private(set) public var photo: (any PhotoData)?
+    private(set) public var photo: PhotoCapture?
 
     /// The underlying `AVCaptureSession` that manages the capture pipeline.
     private let session = AVCaptureSession()
@@ -91,18 +93,26 @@ public actor Camera: NSObject {
     /// Processes a captured photo, converts it to a `CIImage`, and emits it through the stream.
     /// - Parameter photo: The `AVCapturePhoto` to process.
     func processPhoto(_ photo: AVCapturePhoto) async {
-        guard let data = photo.fileDataRepresentation(),
-              let ciImage = CIImage(data: data, options: [.applyOrientationProperty: true])
-        else {
+        
+        guard let ciImage = photo.buildImageForRatio(config.ratio) else {
             return
         }
-        self.photo = photo
+        
+        let colorSpace = ciImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let data = context.jpegRepresentation(of: ciImage, colorSpace: colorSpace, options: [:])
+        
+        self.photo = PhotoCapture(data: data, metadata: photo.metadata)
+        
         await self.stream.emitPhoto(ciImage)
     }
 }
 
 // MARK: - CameraProtocol Conformance
 extension Camera: CameraProtocol {
+    
+    public func changeRatio(_ ratio: CaptureSessionAspectRatio) async {
+        self.config.ratio = ratio
+    }
 
     /// Changes the zoom factor of the camera.
     /// - Parameter factor: The desired zoom factor.
@@ -258,6 +268,7 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
             }
             connection.videoRotationAngle =
                 await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
+            
             await self.stream.emitPreview(image)
         }
     }

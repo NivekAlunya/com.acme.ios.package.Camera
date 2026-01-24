@@ -1,7 +1,12 @@
 import Foundation
+import CoreImage
 
 // A mock implementation of the Photo protocol for testing purposes.
 final class MockPhoto: PhotoData, Equatable {
+    func buildImageForRatio(_ ratio: CaptureSessionAspectRatio) -> CIImage? {
+        return nil
+    }
+    
     func getMetadata() -> [String : Any] {
         return [:]
     }
