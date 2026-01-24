@@ -16,7 +16,6 @@ extension EnvironmentValues {
 /// The main SwiftUI view for the camera interface.
 /// It provides a full-screen camera preview, controls for taking photos, and a settings sheet.
 public struct CameraView: View {
-    @Environment(\.colorScheme) private var colorScheme
     
     /// A closure that is called when the user finishes the capture flow.
     /// - Parameters:
@@ -78,8 +77,6 @@ public struct CameraView: View {
                         }
                     }
 
-
-                                
             }
             .background(Color(UIColor.systemBackground))
             
@@ -139,12 +136,6 @@ public struct CameraView: View {
             SettingsView(model: model)
         }
         .environment(\.bundle, bundle)
-        .onChange(of: colorScheme) { oldValue, newValue in
-            Task {
-                await model.stop()
-                await model.start()
-            }
-        }
         .colorScheme(.dark) // Force dark mode for better camera preview visibility
 
     }
@@ -262,7 +253,6 @@ extension CameraView {
         var action: () -> Void
         var body: some View {
             Button(action: action) {
-                //"iphone.rear.camera"
                 Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
             }
             .accessibilityLabel(CameraHelper.stringFrom("accessibility_switch_front_back", bundle: bundle))

@@ -13,7 +13,7 @@ extension AVCapturePhoto: PhotoData {
         return self.metadata
     }
     
-    public  func buildImageForRatio(_ ratio: CaptureSessionAspectRatio) -> CIImage? {
+    public func buildImageForRatio(_ ratio: CaptureSessionAspectRatio) -> CIImage? {
         guard let data = fileDataRepresentation(),
               let ciImage = CIImage(data: data, options: [.applyOrientationProperty: true])
         else {
