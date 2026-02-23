@@ -56,6 +56,12 @@ public enum CaptureSessionAspectRatio: Sendable, CaseIterable {
         }
     }
 
+    /// The width-to-height ratio, or `nil` when no cropping should be applied.
+    public var aspectRatio: CGFloat? {
+        guard self != .defaultAspectRatio else { return nil }
+        return getRatio()
+    }
+
     /// Calculates the target size for cropping based on the aspect ratio and input size.
     /// - Parameter inputSize: The size of the original image/preview.
     /// - Returns: The target `CGSize` for the crop, or `nil` if no cropping is needed.

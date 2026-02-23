@@ -182,7 +182,6 @@ public class CameraModel {
         }
     }
 
-
     /// Handles the user accepting the captured photo.
     func handleAcceptPhoto() async {
         await acceptPhoto()

@@ -16,10 +16,10 @@ extension CIImage {
         guard let targetSize = ratio.targetSize(for: self.extent.size) else {
             return self
         }
-        
+
         let offsetX = (self.extent.width - targetSize.width) / 2
         let offsetY = (self.extent.height - targetSize.height) / 2
-        
+
         return self.cropped(to: CGRect(
             origin: CGPoint(x: offsetX, y: offsetY),
             size: targetSize

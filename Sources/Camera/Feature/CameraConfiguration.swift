@@ -116,7 +116,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
                 device: device, previewLayer: nil)
         } else {
             zoomRange = 1...1
-        }
+        }        
     }
 
     /// Sets up the list of supported formats from the photo output.
