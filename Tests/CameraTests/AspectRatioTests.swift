@@ -44,6 +44,14 @@ struct AspectRatioTests {
         #expect(landscapeTarget?.height == 3000)
     }
     
+    @Test("CaptureSessionAspectRatio.aspectRatio returns correct values")
+    func testAspectRatio() {
+        #expect(CaptureSessionAspectRatio.defaultAspectRatio.aspectRatio == nil)
+        #expect(CaptureSessionAspectRatio.ratio_4_3.aspectRatio == 4.0 / 3.0)
+        #expect(CaptureSessionAspectRatio.ratio_16_9.aspectRatio == 16.0 / 9.0)
+        #expect(CaptureSessionAspectRatio.ratio_1_1.aspectRatio == 1.0)
+    }
+
     @Test("CIImage.cropped(to:) produces expected size")
     func testCIImageCropping() {
         let image = CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 4000, height: 3000))
