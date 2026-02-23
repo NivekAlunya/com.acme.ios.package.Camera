@@ -57,7 +57,7 @@ public enum CaptureSessionAspectRatio: Sendable, CaseIterable {
     }
 
     /// The width-to-height ratio, or `nil` when no cropping should be applied.
-    public var aspectRatio: CGFloat? {
+    var aspectRatio: CGFloat? {
         guard self != .defaultAspectRatio else { return nil }
         return getRatio()
     }
@@ -66,11 +66,11 @@ public enum CaptureSessionAspectRatio: Sendable, CaseIterable {
     /// - Parameter inputSize: The size of the original image/preview.
     /// - Returns: The target `CGSize` for the crop, or `nil` if no cropping is needed.
     func targetSize(for inputSize: CGSize) -> CGSize? {
-        guard self != .defaultAspectRatio else { return nil }
+        guard let landscapeRatio = aspectRatio else { return nil }
 
         let isPortrait = inputSize.height >= inputSize.width
-        // getRatio() is always landscape (w/h); invert for portrait images.
-        let ratio = isPortrait ? 1.0 / getRatio() : getRatio()
+        // aspectRatio is always landscape (w/h); invert for portrait images.
+        let ratio = isPortrait ? 1.0 / landscapeRatio : landscapeRatio
 
         // Anchor width, derive height.
         let derivedHeight = inputSize.width / ratio
