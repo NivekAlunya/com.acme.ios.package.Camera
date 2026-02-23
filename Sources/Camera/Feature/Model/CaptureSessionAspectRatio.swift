@@ -57,6 +57,8 @@ public enum CaptureSessionAspectRatio: Sendable, CaseIterable {
     }
 
     /// Calculates the target size for cropping based on the aspect ratio and input size.
+    /// Only crops top/bottom (height). Returns `nil` when the target ratio would require
+    /// cropping the sides, letting the caller keep the full image instead.
     /// - Parameter inputSize: The size of the original image/preview.
     /// - Returns: The target `CGSize` for the crop, or `nil` if no cropping is needed.
     func targetSize(for inputSize: CGSize) -> CGSize? {
@@ -68,15 +70,16 @@ public enum CaptureSessionAspectRatio: Sendable, CaseIterable {
         let targetRatio = getRatio()
         
         if isPortrait {
-            // Target ratio is W/H. For portrait, we use 1/targetRatio (e.g., 3/4 for 4:3).
+            // getRatio() returns a landscape w/h ratio; invert it for portrait (e.g. 3/4 for 4:3).
             let portraitRatio = 1 / targetRatio
             let imageRatio = width / height
             
-            if imageRatio >= portraitRatio {
-                // Image is wider than target: fit to height
-                return CGSize(width: height * portraitRatio, height: height)
+            if imageRatio > portraitRatio {
+                // Target is narrower than the image (e.g. 9:16 on a native 3:4 sensor).
+                // Cannot fill that ratio without cropping sides — keep the full image.
+                return nil
             } else {
-                // Image is taller than target: fit to width
+                // Image is narrower than or equal to the target: fit to width, crop height.
                 return CGSize(width: width, height: width / portraitRatio)
             }
         } else {
@@ -88,7 +91,7 @@ public enum CaptureSessionAspectRatio: Sendable, CaseIterable {
                 // Cannot fill that ratio without exceeding bounds — keep the full image.
                 return nil
             } else {
-                // Image is wider than or equal to the target: fit to height, crop width sides.
+                // Image is wider than or equal to the target: fit to height, crop top/bottom.
                 return CGSize(width: height * targetRatio, height: height)
             }
         }
