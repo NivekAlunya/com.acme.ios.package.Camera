@@ -83,11 +83,12 @@ public enum CaptureSessionAspectRatio: Sendable, CaseIterable {
             // Landscape: targetRatio is W/H (e.g., 4/3 for 4:3).
             let imageRatio = width / height
             
-            if imageRatio <= targetRatio {
-                // Image is taller than target: fit to width
-                return CGSize(width: width, height: width / targetRatio)
+            if imageRatio < targetRatio {
+                // Target is wider than the image (e.g. 16:9 on a 4:3 sensor).
+                // Cannot fill that ratio without exceeding bounds — keep the full image.
+                return nil
             } else {
-                // Image is wider than target: fit to height
+                // Image is wider than or equal to the target: fit to height, crop width sides.
                 return CGSize(width: height * targetRatio, height: height)
             }
         }
