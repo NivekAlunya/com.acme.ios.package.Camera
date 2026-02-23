@@ -174,20 +174,21 @@ extension CameraView {
                         case .processing, .loading, .accepted:
                             EmptyView()
                         case .validating:
+                            Spacer()
                             RejectButton {
                                 Task { await model.handleRejectPhoto() }
                             }
-                            .frame(maxWidth: .infinity)
+                            Spacer()
                             AcceptButton {
                                 Task { await model.handleAcceptPhoto() }
                             }
-                            .frame(maxWidth: .infinity)
+                            Spacer()
                         case .unauthorized:
-
+                            Spacer()
                             OpenSettingsButton()
-                                .frame(maxWidth: .infinity)
+                            Spacer()
                             CancelButton(onCancel: onCancel)
-                                .frame(maxWidth: .infinity)
+                            Spacer()
                         }
                     }
                     .buttonStyle(.plain)
@@ -198,6 +199,7 @@ extension CameraView {
                 }
                 .padding()
             }
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         }
     }
 

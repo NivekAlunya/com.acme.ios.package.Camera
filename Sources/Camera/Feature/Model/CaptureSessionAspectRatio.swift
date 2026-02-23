@@ -67,36 +67,18 @@ public enum CaptureSessionAspectRatio: Sendable, CaseIterable {
     /// - Returns: The target `CGSize` for the crop, or `nil` if no cropping is needed.
     func targetSize(for inputSize: CGSize) -> CGSize? {
         guard self != .defaultAspectRatio else { return nil }
-        
-        let width = inputSize.width
-        let height = inputSize.height
-        let isPortrait = height >= width
-        let targetRatio = getRatio()
-        
-        if isPortrait {
-            // Target ratio is W/H. For portrait, we use 1/targetRatio (e.g., 3/4 for 4:3).
-            let portraitRatio = 1 / targetRatio
-            let imageRatio = width / height
-            
-            if imageRatio >= portraitRatio {
-                // Image is wider than target: fit to height
-                return CGSize(width: height * portraitRatio, height: height)
-            } else {
-                // Image is taller than target: fit to width
-                return CGSize(width: width, height: width / portraitRatio)
-            }
-        } else {
-            // Landscape: targetRatio is W/H (e.g., 4/3 for 4:3).
-            let imageRatio = width / height
-            
-            if imageRatio <= targetRatio {
-                // Image is taller than target: fit to width
-                return CGSize(width: width, height: width / targetRatio)
-            } else {
-                // Image is wider than target: fit to height
-                return CGSize(width: height * targetRatio, height: height)
-            }
+
+        let isPortrait = inputSize.height >= inputSize.width
+        // getRatio() is always landscape (w/h); invert for portrait images.
+        let ratio = isPortrait ? 1.0 / getRatio() : getRatio()
+
+        // Anchor width, derive height.
+        let derivedHeight = inputSize.width / ratio
+        if derivedHeight <= inputSize.height {
+            return CGSize(width: inputSize.width, height: derivedHeight)
         }
+
+        // Derived height exceeds image bounds — anchor height, derive width instead.
+        return CGSize(width: inputSize.height * ratio, height: inputSize.height)
     }
 }
-
