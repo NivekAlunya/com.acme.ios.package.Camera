@@ -70,7 +70,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
 
     // MARK: - Initialization
 
-    init(
+    public init(
         deviceInput: AVCaptureDeviceInput? = nil,
         flashMode: CameraFlashMode = .off,
         videoCodecType: VideoCodecType = .hevc,
@@ -92,14 +92,38 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         self.ratio = aspectRatio
         refreshAvailableDevices()
     }
+    
+    func configureFocus() {
+        // configure auto focus
+        if let device = deviceInput?.device,
+           device.isFocusModeSupported(.autoFocus) {
+            try? device.lockForConfiguration()
+
+            device.focusMode = .autoFocus
+
+            device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5) // Center focus
+
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            }
+            if device.isSmoothAutoFocusSupported {
+                device.isSmoothAutoFocusEnabled = true
+            }
+            device.unlockForConfiguration()
+        }
+    }
 
     // MARK: - Private Methods
 
     /// Refreshes the list of available capture devices based on the current position.
+    /// The resulting list is prioritized according to the order defined in `CaptureDeviceType`.
     private mutating func refreshAvailableDevices() {
         let cameras = CaptureDeviceType.allCases.map { $0.deviceType }
+        
+        // The DiscoverySession respects the order of the deviceTypes array for its prioritized results.
         let discoverySession = AVCaptureDevice.DiscoverySession(
             deviceTypes: cameras, mediaType: .video, position: position)
+        
         listCaptureDevice = discoverySession.devices.filter { $0.position == position }
     }
 
@@ -169,6 +193,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         // Find the actual preset in the list, or fallback to the first available one.
         preset = listPreset.first(where: { $0 == preset }) ?? listPreset.first ?? .inputPriority
         session.sessionPreset = preset.avPreset
+        
     }
 
     /// Sets up the photo and video outputs for the capture session.
@@ -205,6 +230,9 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
             session.addInput(input)
             deviceInput = input
             setupDevice()
+            
+            // Focus must be configured after the device is added back to the session and deviceInput is set.
+            configureFocus()
         } catch {
             throw CameraError.creationFailed
         }

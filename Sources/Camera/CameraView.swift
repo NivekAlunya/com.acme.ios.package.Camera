@@ -44,12 +44,12 @@ public struct CameraView: View {
     /// - Parameters:
     ///   - bundle: The bundle for string localization. Defaults to `.module`.
     ///   - completion: The closure to call upon completion.
-    public init(bundle: Bundle? = nil, dismissOnComplete: Bool = true, completion: OnComplete?) {
+    public init(bundle: Bundle? = nil, cameraConfig: CameraConfiguration = CameraConfiguration(), dismissOnComplete: Bool = true, completion: OnComplete?) {
         let resolvedBundle = bundle ?? Bundle.module
         self.completion = completion
         self.bundle = resolvedBundle
         self.dismissOnComplete = dismissOnComplete
-        self.model = CameraModel()
+        self.model = CameraModel(camera: Camera(config: cameraConfig))
     }
 
     /// Internal initializer for previews and testing.

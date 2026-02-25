@@ -7,7 +7,6 @@
 
 import Foundation
 
-
 public enum CaptureSessionAspectRatio: Sendable, CaseIterable {
     case ratio_4_3
     case ratio_16_9

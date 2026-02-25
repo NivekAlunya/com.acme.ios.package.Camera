@@ -50,12 +50,14 @@ public actor Camera: NSObject {
 
     /// The current state of the camera.
     private var state = CameraState.needSetup
-
-    public override init() {
-        self.config = CameraConfiguration()
-        super.init()
+    
+    public init(config: CameraConfiguration = CameraConfiguration()) {
+        
+        self.config = config
+        self.stream = CameraStream()
+        self.state = .needSetup
     }
-
+    
     /// Removes the current capture device input from the session.
     private func removeDevice() {
         if session.isRunning {
