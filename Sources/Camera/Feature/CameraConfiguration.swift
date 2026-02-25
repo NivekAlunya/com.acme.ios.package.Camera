@@ -97,19 +97,27 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         // configure auto focus
         if let device = deviceInput?.device,
            device.isFocusModeSupported(.autoFocus) {
-            try? device.lockForConfiguration()
+            do {
+                try device.lockForConfiguration()
+                defer {
+                    device.unlockForConfiguration()
+                }
 
-            device.focusMode = .autoFocus
+                device.focusMode = .autoFocus
 
-            device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5) // Center focus
+                device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5) // Center focus
 
-            if device.isFocusModeSupported(.continuousAutoFocus) {
-                device.focusMode = .continuousAutoFocus
+                if device.isFocusModeSupported(.continuousAutoFocus) {
+                    device.focusMode = .continuousAutoFocus
+                }
+                if device.isSmoothAutoFocusSupported {
+                    device.isSmoothAutoFocusEnabled = true
+                }
+            } catch {
+                #if DEBUG
+                print("CameraConfiguration.configureFocus: Failed to lock device for configuration: \(error)")
+                #endif
             }
-            if device.isSmoothAutoFocusSupported {
-                device.isSmoothAutoFocusEnabled = true
-            }
-            device.unlockForConfiguration()
         }
     }
 
