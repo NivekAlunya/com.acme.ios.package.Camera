@@ -30,9 +30,6 @@ public actor Camera: NSObject {
     
     private let context = CIContext(options: nil)
     
-    /// The shared singleton instance of the `Camera`.
-    public static let shared = Camera()
-
     /// The current camera configuration.
     public var config: CameraConfiguration
 
