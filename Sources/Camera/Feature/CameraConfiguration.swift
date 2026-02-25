@@ -103,13 +103,13 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
                     device.unlockForConfiguration()
                 }
 
-                device.focusMode = .autoFocus
+                let focusMode: AVCaptureDevice.FocusMode = device.isFocusModeSupported(.continuousAutoFocus) ? .continuousAutoFocus : .autoFocus
+                device.focusMode = focusMode
 
-                device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5) // Center focus
-
-                if device.isFocusModeSupported(.continuousAutoFocus) {
-                    device.focusMode = .continuousAutoFocus
+                if device.isFocusPointOfInterestSupported {
+                    device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5) // Center focus
                 }
+
                 if device.isSmoothAutoFocusSupported {
                     device.isSmoothAutoFocusEnabled = true
                 }
@@ -124,15 +124,21 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
     // MARK: - Private Methods
 
     /// Refreshes the list of available capture devices based on the current position.
-    /// The resulting list is prioritized according to the order defined in `CaptureDeviceType`.
+    /// The resulting list is explicitly sorted according to the priority order defined in `CaptureDeviceType`.
     private mutating func refreshAvailableDevices() {
         let cameras = CaptureDeviceType.allCases.map { $0.deviceType }
         
-        // The DiscoverySession respects the order of the deviceTypes array for its prioritized results.
         let discoverySession = AVCaptureDevice.DiscoverySession(
             deviceTypes: cameras, mediaType: .video, position: position)
         
-        listCaptureDevice = discoverySession.devices.filter { $0.position == position }
+        let priorityIndex = Dictionary(uniqueKeysWithValues: cameras.enumerated().map { ($1, $0) })
+        listCaptureDevice = discoverySession.devices
+            .filter { $0.position == position }
+            .sorted { a, b in
+                let aIndex = priorityIndex[a.deviceType] ?? Int.max
+                let bIndex = priorityIndex[b.deviceType] ?? Int.max
+                return aIndex < bIndex
+            }
     }
 
     /// Sets up the properties related to the current device (flash, zoom, etc.).

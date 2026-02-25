@@ -25,7 +25,7 @@ private enum CameraState {
 
 /// The `Camera` actor manages all capture-related operations using AVFoundation.
 /// It handles the capture session, device configuration, and data output for video and photos.
-/// This actor is a singleton to ensure that only one instance manages the camera hardware at a time.
+/// It can be instantiated with a custom `CameraConfiguration` to allow flexible camera setup.
 public actor Camera: NSObject {
     
     private let context = CIContext(options: nil)

@@ -43,6 +43,8 @@ public struct CameraView: View {
     /// Initializes a new `CameraView`.
     /// - Parameters:
     ///   - bundle: The bundle for string localization. Defaults to `.module`.
+    ///   - cameraConfig: The camera configuration to use. Defaults to a new `CameraConfiguration` instance.
+    ///   - dismissOnComplete: Whether to dismiss the view automatically on completion. Defaults to `true`.
     ///   - completion: The closure to call upon completion.
     public init(bundle: Bundle? = nil, cameraConfig: CameraConfiguration = CameraConfiguration(), dismissOnComplete: Bool = true, completion: OnComplete?) {
         let resolvedBundle = bundle ?? Bundle.module
