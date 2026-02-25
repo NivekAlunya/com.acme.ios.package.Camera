@@ -131,14 +131,8 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         let discoverySession = AVCaptureDevice.DiscoverySession(
             deviceTypes: cameras, mediaType: .video, position: position)
         
-        let priorityIndex = Dictionary(uniqueKeysWithValues: cameras.enumerated().map { ($1, $0) })
-        listCaptureDevice = discoverySession.devices
-            .filter { $0.position == position }
-            .sorted { a, b in
-                let aIndex = priorityIndex[a.deviceType] ?? Int.max
-                let bIndex = priorityIndex[b.deviceType] ?? Int.max
-                return aIndex < bIndex
-            }
+        listCaptureDevice = discoverySession.devices.filter { $0.position == position }
+
     }
 
     /// Sets up the properties related to the current device (flash, zoom, etc.).
