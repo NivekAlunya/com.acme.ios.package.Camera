@@ -51,8 +51,6 @@ public actor Camera: NSObject {
     public init(config: CameraConfiguration = CameraConfiguration()) {
         
         self.config = config
-        self.stream = CameraStream()
-        self.state = .needSetup
     }
     
     /// Removes the current capture device input from the session.
