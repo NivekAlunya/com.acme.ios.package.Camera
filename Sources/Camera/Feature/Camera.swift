@@ -25,14 +25,11 @@ private enum CameraState {
 
 /// The `Camera` actor manages all capture-related operations using AVFoundation.
 /// It handles the capture session, device configuration, and data output for video and photos.
-/// This actor is a singleton to ensure that only one instance manages the camera hardware at a time.
+/// It can be instantiated with a custom `CameraConfiguration` to allow flexible camera setup.
 public actor Camera: NSObject {
     
     private let context = CIContext(options: nil)
     
-    /// The shared singleton instance of the `Camera`.
-    public static let shared = Camera()
-
     /// The current camera configuration.
     public var config: CameraConfiguration
 
@@ -50,12 +47,12 @@ public actor Camera: NSObject {
 
     /// The current state of the camera.
     private var state = CameraState.needSetup
-
-    public override init() {
-        self.config = CameraConfiguration()
-        super.init()
+    
+    public init(config: CameraConfiguration = CameraConfiguration()) {
+        
+        self.config = config
     }
-
+    
     /// Removes the current capture device input from the session.
     private func removeDevice() {
         if session.isRunning {

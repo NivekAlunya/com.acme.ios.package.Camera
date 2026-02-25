@@ -101,8 +101,8 @@ public class CameraModel {
     // MARK: - Initialization
 
     /// Initializes the camera model.
-    /// - Parameter camera: The camera protocol instance to use. Defaults to the shared `Camera` actor.
-    init(camera: any CameraProtocol = Camera.shared) {
+    /// - Parameter camera: The camera protocol instance to use. Defaults to a new `Camera` actor instance.
+    init(camera: any CameraProtocol = Camera()) {
         self.camera = camera
     }
 

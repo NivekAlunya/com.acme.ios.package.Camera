@@ -70,7 +70,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
 
     // MARK: - Initialization
 
-    init(
+    public init(
         deviceInput: AVCaptureDeviceInput? = nil,
         flashMode: CameraFlashMode = .off,
         videoCodecType: VideoCodecType = .hevc,
@@ -92,15 +92,47 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         self.ratio = aspectRatio
         refreshAvailableDevices()
     }
+    
+    func configureFocus() {
+        // configure auto focus
+        if let device = deviceInput?.device,
+           device.isFocusModeSupported(.autoFocus) {
+            do {
+                try device.lockForConfiguration()
+                defer {
+                    device.unlockForConfiguration()
+                }
+
+                let focusMode: AVCaptureDevice.FocusMode = device.isFocusModeSupported(.continuousAutoFocus) ? .continuousAutoFocus : .autoFocus
+                device.focusMode = focusMode
+
+                if device.isFocusPointOfInterestSupported {
+                    device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5) // Center focus
+                }
+
+                if device.isSmoothAutoFocusSupported {
+                    device.isSmoothAutoFocusEnabled = true
+                }
+            } catch {
+                #if DEBUG
+                print("CameraConfiguration.configureFocus: Failed to lock device for configuration: \(error)")
+                #endif
+            }
+        }
+    }
 
     // MARK: - Private Methods
 
     /// Refreshes the list of available capture devices based on the current position.
+    /// The resulting list is explicitly sorted according to the priority order defined in `CaptureDeviceType`.
     private mutating func refreshAvailableDevices() {
         let cameras = CaptureDeviceType.allCases.map { $0.deviceType }
+        
         let discoverySession = AVCaptureDevice.DiscoverySession(
             deviceTypes: cameras, mediaType: .video, position: position)
+        
         listCaptureDevice = discoverySession.devices.filter { $0.position == position }
+
     }
 
     /// Sets up the properties related to the current device (flash, zoom, etc.).
@@ -169,6 +201,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         // Find the actual preset in the list, or fallback to the first available one.
         preset = listPreset.first(where: { $0 == preset }) ?? listPreset.first ?? .inputPriority
         session.sessionPreset = preset.avPreset
+        
     }
 
     /// Sets up the photo and video outputs for the capture session.
@@ -205,6 +238,9 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
             session.addInput(input)
             deviceInput = input
             setupDevice()
+            
+            // Focus must be configured after the device is added back to the session and deviceInput is set.
+            configureFocus()
         } catch {
             throw CameraError.creationFailed
         }
