@@ -9,10 +9,10 @@ import AVFoundation
 
 /// A wrapper enum for `AVCaptureDevice.DeviceType` to provide a `CaseIterable` and more convenient interface.
 /// The order of cases in this enum determines the priority of camera selection. 
-/// Devices at the top are preferred as they offer the most features (e.g., Triple Camera for Macro support).
+/// Devices at the top are preferred as they offer the most features (e.g., Triple Camera supports the most comprehensive lens selection).
 public enum CaptureDeviceType: CaseIterable {
 
-    case builtInTripleCamera     // Priority 1: Supports automatic macro lens switching
+    case builtInTripleCamera     // Priority 1: Supports the most comprehensive lens selection (Wide, Ultra-Wide, and Telephoto)
     case builtInDualWideCamera   // Priority 2: Supports Wide and Ultra-Wide lens switching
     case builtInDualCamera       // Priority 3: Supports Wide and Telephoto lens switching
     case builtInUltraWideCamera
