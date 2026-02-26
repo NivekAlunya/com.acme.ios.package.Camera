@@ -404,7 +404,7 @@ extension CameraView {
                             get: { model.zoom },
                             set: { value in model.selectZoom(value) }),
                                in: model.zoomRange,
-                               step: 1.0)
+                               step: 0.5)
                         Text("zoom \(model.zoom, specifier: "%.1f")x")
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
