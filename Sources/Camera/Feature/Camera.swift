@@ -133,7 +133,6 @@ extension Camera: CameraProtocol {
         } catch {
             throw CameraError.zoomUpdateFailed
         }
-        config.zoom = Float(device.videoZoomFactor)
     }
     
     /// Starts the camera session.
