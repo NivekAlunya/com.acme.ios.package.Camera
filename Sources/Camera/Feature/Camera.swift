@@ -117,18 +117,19 @@ extension Camera: CameraProtocol {
         guard let device = config.deviceInput?.device else { return }
         do {
             try device.lockForConfiguration()
-            device.videoZoomFactor = max(1.0, min(factor, device.activeFormat.videoMaxZoomFactor))
+            defer { device.unlockForConfiguration() }
+            let clampedFactor = max(device.minAvailableVideoZoomFactor,
+                                    min(factor, device.maxAvailableVideoZoomFactor))
+            device.videoZoomFactor = clampedFactor
             
             // Re-engage continuous focus after zoom change
             if device.isFocusModeSupported(.continuousAutoFocus) {
                 device.focusMode = .continuousAutoFocus
             }
-            
-            device.unlockForConfiguration()
-            config.zoom = Float(device.videoZoomFactor)
         } catch {
             throw CameraError.zoomUpdateFailed
         }
+        config.zoom = Float(device.videoZoomFactor)
     }
     
     /// Starts the camera session.

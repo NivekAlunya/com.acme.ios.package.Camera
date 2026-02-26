@@ -97,18 +97,17 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
     func configureFocus() {
         guard let device = deviceInput?.device else { return }
         
-        guard device.isFocusModeSupported(.continuousAutoFocus) ||
-              device.isFocusModeSupported(.autoFocus) else { return }
-        
         do {
             try device.lockForConfiguration()
             defer { device.unlockForConfiguration() }
 
             // Focus
-            let focusMode: AVCaptureDevice.FocusMode = device.isFocusModeSupported(.continuousAutoFocus)
-                ? .continuousAutoFocus
-                : .autoFocus
-            device.focusMode = focusMode
+            if device.isFocusModeSupported(.continuousAutoFocus) || device.isFocusModeSupported(.autoFocus) {
+                let focusMode: AVCaptureDevice.FocusMode = device.isFocusModeSupported(.continuousAutoFocus)
+                    ? .continuousAutoFocus
+                    : .autoFocus
+                device.focusMode = focusMode
+            }
 
             if device.isFocusPointOfInterestSupported {
                 device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
