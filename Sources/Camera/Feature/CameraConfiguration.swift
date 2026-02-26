@@ -93,34 +93,55 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         refreshAvailableDevices()
     }
     
-    func configureFocus() {
-        // configure auto focus
-        if let device = deviceInput?.device,
-           device.isFocusModeSupported(.autoFocus) {
-            do {
-                try device.lockForConfiguration()
-                defer {
-                    device.unlockForConfiguration()
-                }
+    /// Configures the camera device's auto settings including focus, exposure, and white balance.
+    /// Each setting is applied independently so that unsupported focus modes do not prevent
+    /// exposure or white balance from being configured.
+    func configureAutoSettings() {
+        guard let device = deviceInput?.device else { return }
+        
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
 
-                let focusMode: AVCaptureDevice.FocusMode = device.isFocusModeSupported(.continuousAutoFocus) ? .continuousAutoFocus : .autoFocus
-                device.focusMode = focusMode
-
-                if device.isFocusPointOfInterestSupported {
-                    device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5) // Center focus
-                }
-
-                if device.isSmoothAutoFocusSupported {
-                    device.isSmoothAutoFocusEnabled = true
-                }
-            } catch {
-                #if DEBUG
-                print("CameraConfiguration.configureFocus: Failed to lock device for configuration: \(error)")
-                #endif
+            // Focus
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            } else if device.isFocusModeSupported(.autoFocus) {
+                device.focusMode = .autoFocus
             }
+
+            if device.isFocusPointOfInterestSupported {
+                device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+            }
+
+            // Allow full focus range including close-up/macro
+            if device.isAutoFocusRangeRestrictionSupported {
+                device.autoFocusRangeRestriction = .none
+            }
+
+            if device.isSmoothAutoFocusSupported {
+                device.isSmoothAutoFocusEnabled = true
+            }
+
+            // Continuous exposure (prevents blur from exposure lag)
+            if device.isExposureModeSupported(.continuousAutoExposure) {
+                device.exposureMode = .continuousAutoExposure
+                if device.isExposurePointOfInterestSupported {
+                    device.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+                }
+            }
+
+            // Continuous white balance
+            if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+                device.whiteBalanceMode = .continuousAutoWhiteBalance
+            }
+
+        } catch {
+            #if DEBUG
+            print("CameraConfiguration.configureAutoSettings: \(error)")
+            #endif
         }
     }
-
     // MARK: - Private Methods
 
     /// Refreshes the list of available capture devices based on the current position.
@@ -228,24 +249,29 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         isOutputSetup = true
     }
 
-    /// Sets up the capture device input for the session.
+    /// Sets up the capture device input for the given session.
+    /// - Parameters:
+    ///   - device: The capture device to configure.
+    ///   - session: The capture session to which the device input will be added.
+    /// - Throws: `CameraError.creationFailed` if the input cannot be created,
+    ///           or `CameraError.cannotAddInput` if the input cannot be added to the session.
     private mutating func setupCaptureDevice(device: AVCaptureDevice, forSession session: AVCaptureSession) throws {
+        let input: AVCaptureDeviceInput
         do {
-            let input = try AVCaptureDeviceInput(device: device)
-            guard session.canAddInput(input) else {
-                throw CameraError.cannotAddInput
-            }
-            session.addInput(input)
-            deviceInput = input
-            setupDevice()
-            
-            // Focus must be configured after the device is added back to the session and deviceInput is set.
-            configureFocus()
+            input = try AVCaptureDeviceInput(device: device)
         } catch {
             throw CameraError.creationFailed
         }
+        
+        guard session.canAddInput(input) else {
+            throw CameraError.cannotAddInput
+        }
+        session.addInput(input)
+        deviceInput = input
+        setupDevice()
+        configureAutoSettings()
     }
-
+    
     /// Gets the default camera device based on the current configuration.
     /// - Returns: An `AVCaptureDevice` instance.
     func getDefaultCamera() -> AVCaptureDevice? {

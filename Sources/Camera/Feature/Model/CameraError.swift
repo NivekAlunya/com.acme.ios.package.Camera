@@ -21,7 +21,8 @@ public enum CameraError: Error {
     case zoomUpdateFailed
     /// The camera session is already running and cannot be started again.
     case cannotStartCamera
-    
+    /// Failed to focus the camera on the specified point.
+    case focusFailed
     /// A computed property that returns a localization key for each error case.
     var stringKey: String {
         switch self {
@@ -32,6 +33,7 @@ public enum CameraError: Error {
         case .cannotStartCamera: "camera_error_cannotStartCamera"
         case .creationFailed: "camera_error_creationFailed"
         case .zoomUpdateFailed: "camera_error_zoomUpdateFailed"
+        case .focusFailed: "camera_error_focusFailed"
         }
     }
 }

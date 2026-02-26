@@ -31,7 +31,13 @@ public struct CameraView: View {
 
     /// A state variable to control the visibility of the error alert.
     @State private var showErrorAlert = false
-
+    
+    /// Controls visibility of the temporary zoom overlay.
+    @State private var showZoomOverlay = false
+    
+    /// Task used to auto-hide the zoom overlay after a short delay.
+    @State private var zoomOverlayTask: Task<Void, Never>?
+    
     /// The bundle to use for localizing strings.
     public let bundle: Bundle
 
@@ -61,6 +67,24 @@ public struct CameraView: View {
         self.dismissOnComplete = dismissOnComplete
         self.model = model
     }
+    
+    private var overlayZoomValue: Double {
+        if model.selectedDevice?.deviceType == .builtInUltraWideCamera {
+            return model.zoom / 2.0
+        }
+        return model.zoom
+    }
+
+    private func presentZoomOverlay() {
+        zoomOverlayTask?.cancel()
+        showZoomOverlay = true
+        zoomOverlayTask = Task {
+            try? await Task.sleep(for: .seconds(1))
+            if !Task.isCancelled {
+                showZoomOverlay = false
+            }
+        }
+    }
 
     public var body: some View {
         GeometryReader { reader in
@@ -78,10 +102,8 @@ public struct CameraView: View {
                             .compositingGroup()
                         }
                     }
-
             }
             .background(Color(UIColor.systemBackground))
-            
         }
         .overlay {
             switch model.state {
@@ -96,24 +118,56 @@ public struct CameraView: View {
                 EmptyView()
             }
         }
+        .onTapGesture(count: 1) { location in
+            model.selectFocusPoint(location)
+        }
+        // Pinch updates zoom relatively from the zoom at gesture start.
+        .gesture(
+            MagnificationGesture()
+                .onChanged { value in
+                    model.selectZoom(pinchScale: value)
+                }
+                .onEnded { _ in
+                    model.endPinchZoom()
+                }
+        )
         .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
-            FooterView(model: model, isSettingShown: $isSettingShown) {
-                Task { await model.handleExit() }
-                completion?(nil, nil)
+            VStack {
+                if showZoomOverlay {
+                    Text("\(overlayZoomValue, specifier: "%.1f")x")
+                        .font(.headline.bold())
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.white.opacity(0.65))
+                        .foregroundStyle(.white)
+                        .clipShape(Capsule())
+                        .padding(.top, 20)
+                }
+                
+                FooterView(model: model, isSettingShown: $isSettingShown) {
+                    Task { await model.handleExit() }
+                    completion?(nil, nil)
+                }
             }
         }
-
         .task {
             print("CameraView appeared for the first time, starting camera...")
             await model.start()
         }
         .onDisappear {
+            zoomOverlayTask?.cancel()
             print("CameraView disappeared, stopping camera...")
             Task {
                 await model.stop()
             }
+        }
+        .onChange(of: model.zoom) {
+            guard model.state == .previewing else {
+                return
+            }
+            presentZoomOverlay()
         }
         .onChange(of: model.state) {
             if case .accepted(let accepted) = model.state {
@@ -396,16 +450,38 @@ extension CameraView {
     struct DeviceSettingsView: View {
         @Environment(\.bundle) var bundle
         let model: CameraModel
+
+        private var usesUltraWideEquivalentScale: Bool {
+            model.selectedDevice?.deviceType == .builtInUltraWideCamera
+        }
+
+        private var displayZoomRange: ClosedRange<Double> {
+            if usesUltraWideEquivalentScale {
+                return (model.zoomRange.lowerBound / 2.0)...(model.zoomRange.upperBound / 2.0)
+            }
+            return model.zoomRange
+        }
+
+        private var displayZoom: Double {
+            if usesUltraWideEquivalentScale {
+                return model.zoom / 2.0
+            }
+            return model.zoom
+        }
+
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_camera", bundle: bundle)).bold()) {
                     VStack {
                         Slider(value: Binding(
-                            get: { model.zoom },
-                            set: { value in model.selectZoom(value) }),
-                               in: model.zoomRange,
-                               step: 1.0)
-                        Text("zoom \(model.zoom, specifier: "%.1f")x")
+                            get: { displayZoom },
+                            set: { value in
+                                let hardwareZoom = usesUltraWideEquivalentScale ? value * 2.0 : value
+                                model.selectZoom(hardwareZoom)
+                            }),
+                               in: displayZoomRange,
+                               step: 0.5)
+                        Text("zoom \(displayZoom, specifier: "%.1f")x")
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
                     }.listRowSeparator(.hidden)

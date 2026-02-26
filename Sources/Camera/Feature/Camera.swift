@@ -107,6 +107,25 @@ public actor Camera: NSObject {
 // MARK: - CameraProtocol Conformance
 extension Camera: CameraProtocol {
     
+    public func focus(on: CGPoint) async throws {
+        guard let device = config.deviceInput?.device else { return }
+        let focusPoint = CGPoint(x: on.x, y: 1.0 - on.y) // Convert to device coordinates
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            if device.isFocusPointOfInterestSupported && device.isFocusModeSupported(.autoFocus) {
+                device.focusPointOfInterest = focusPoint
+                device.focusMode = .autoFocus
+            }
+            if device.isExposurePointOfInterestSupported && device.isExposureModeSupported(.autoExpose) {
+                device.exposurePointOfInterest = focusPoint
+                device.exposureMode = .autoExpose
+            }
+        } catch {
+            throw CameraError.focusFailed
+        }
+    }
+    
     public func changeRatio(_ ratio: CaptureSessionAspectRatio) async {
         self.config.ratio = ratio
     }
@@ -117,15 +136,24 @@ extension Camera: CameraProtocol {
         guard let device = config.deviceInput?.device else { return }
         do {
             try device.lockForConfiguration()
-            device.videoZoomFactor = max(
-                1.0, min(factor, device.activeFormat.videoMaxZoomFactor))
-            device.unlockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            let clampedFactor = max(device.minAvailableVideoZoomFactor,
+                                    min(factor, device.maxAvailableVideoZoomFactor))
+            device.videoZoomFactor = clampedFactor
+
+            // Re-engage autofocus after zoom change, mirroring initial focus configuration
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            } else if device.isFocusModeSupported(.autoFocus) {
+                device.focusMode = .autoFocus
+            }
+
             config.zoom = Float(device.videoZoomFactor)
         } catch {
             throw CameraError.zoomUpdateFailed
         }
     }
-
+    
     /// Starts the camera session.
     /// This method checks for authorization, sets up the camera if needed, and starts the session.
     public func start() async throws {
