@@ -121,15 +121,18 @@ extension Camera: CameraProtocol {
             let clampedFactor = max(device.minAvailableVideoZoomFactor,
                                     min(factor, device.maxAvailableVideoZoomFactor))
             device.videoZoomFactor = clampedFactor
-            
-            // Re-engage continuous focus after zoom change
+
+            // Re-engage autofocus after zoom change, mirroring initial focus configuration
             if device.isFocusModeSupported(.continuousAutoFocus) {
                 device.focusMode = .continuousAutoFocus
+            } else if device.isFocusModeSupported(.autoFocus) {
+                device.focusMode = .autoFocus
             }
+
+            config.zoom = Float(device.videoZoomFactor)
         } catch {
             throw CameraError.zoomUpdateFailed
         }
-        config.zoom = Float(device.videoZoomFactor)
     }
     
     /// Starts the camera session.
