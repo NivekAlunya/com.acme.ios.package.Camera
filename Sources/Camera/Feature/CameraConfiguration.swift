@@ -93,22 +93,22 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         refreshAvailableDevices()
     }
     
-
-    func configureFocus() {
+    /// Configures the camera device's auto settings including focus, exposure, and white balance.
+    /// Each setting is applied independently so that unsupported focus modes do not prevent
+    /// exposure or white balance from being configured.
+    func configureAutoSettings() {
         guard let device = deviceInput?.device else { return }
-        
-        guard device.isFocusModeSupported(.continuousAutoFocus) ||
-              device.isFocusModeSupported(.autoFocus) else { return }
         
         do {
             try device.lockForConfiguration()
             defer { device.unlockForConfiguration() }
 
             // Focus
-            let focusMode: AVCaptureDevice.FocusMode = device.isFocusModeSupported(.continuousAutoFocus)
-                ? .continuousAutoFocus
-                : .autoFocus
-            device.focusMode = focusMode
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            } else if device.isFocusModeSupported(.autoFocus) {
+                device.focusMode = .autoFocus
+            }
 
             if device.isFocusPointOfInterestSupported {
                 device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
@@ -138,7 +138,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
 
         } catch {
             #if DEBUG
-            print("CameraConfiguration.configureFocus: \(error)")
+            print("CameraConfiguration.configureAutoSettings: \(error)")
             #endif
         }
     }
@@ -269,7 +269,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         session.addInput(input)
         deviceInput = input
         setupDevice()
-        configureFocus()
+        configureAutoSettings()
     }
     
     /// Gets the default camera device based on the current configuration.
