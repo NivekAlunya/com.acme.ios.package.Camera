@@ -249,6 +249,12 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         isOutputSetup = true
     }
 
+    /// Sets up the capture device input for the given session.
+    /// - Parameters:
+    ///   - device: The capture device to configure.
+    ///   - session: The capture session to which the device input will be added.
+    /// - Throws: `CameraError.creationFailed` if the input cannot be created,
+    ///           or `CameraError.cannotAddInput` if the input cannot be added to the session.
     private mutating func setupCaptureDevice(device: AVCaptureDevice, forSession session: AVCaptureSession) throws {
         let input: AVCaptureDeviceInput
         do {
