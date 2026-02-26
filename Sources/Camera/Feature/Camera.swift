@@ -117,15 +117,20 @@ extension Camera: CameraProtocol {
         guard let device = config.deviceInput?.device else { return }
         do {
             try device.lockForConfiguration()
-            device.videoZoomFactor = max(
-                1.0, min(factor, device.activeFormat.videoMaxZoomFactor))
+            device.videoZoomFactor = max(1.0, min(factor, device.activeFormat.videoMaxZoomFactor))
+            
+            // Re-engage continuous focus after zoom change
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            }
+            
             device.unlockForConfiguration()
             config.zoom = Float(device.videoZoomFactor)
         } catch {
             throw CameraError.zoomUpdateFailed
         }
     }
-
+    
     /// Starts the camera session.
     /// This method checks for authorization, sets up the camera if needed, and starts the session.
     public func start() async throws {
