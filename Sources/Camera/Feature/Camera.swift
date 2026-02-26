@@ -107,6 +107,25 @@ public actor Camera: NSObject {
 // MARK: - CameraProtocol Conformance
 extension Camera: CameraProtocol {
     
+    public func focus(on: CGPoint) async throws {
+        guard let device = config.deviceInput?.device else { return }
+        let focusPoint = CGPoint(x: on.x, y: 1.0 - on.y) // Convert to device coordinates
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            if device.isFocusPointOfInterestSupported && device.isFocusModeSupported(.autoFocus) {
+                device.focusPointOfInterest = focusPoint
+                device.focusMode = .autoFocus
+            }
+            if device.isExposurePointOfInterestSupported && device.isExposureModeSupported(.autoExpose) {
+                device.exposurePointOfInterest = focusPoint
+                device.exposureMode = .autoExpose
+            }
+        } catch {
+            throw CameraError.focusFailed
+        }
+    }
+    
     public func changeRatio(_ ratio: CaptureSessionAspectRatio) async {
         self.config.ratio = ratio
     }

@@ -87,6 +87,8 @@ public class CameraModel {
     var zoomRange = 1.0...1.0
     /// The current zoom factor.
     var zoom: Double = 1.0
+    /// The zoom value captured at the start of the current pinch gesture.
+    var pinchStartZoom: Double?
     /// The aspect ratio of the camera preview.
     var ratio: CaptureSessionAspectRatio = .defaultAspectRatio
 
@@ -132,6 +134,17 @@ public class CameraModel {
         }
     }
 
+    func selectFocusPoint(_ point: CGPoint) {
+        Task {
+            do {
+                try await camera.focus(on: point)
+            } catch (let error as CameraError) {
+                self.error = error
+            } catch {
+                // Handle other potential errors
+            }
+        }
+    }
 
     func stop() async {
         await camera.end()
@@ -247,6 +260,26 @@ public class CameraModel {
                 // Handle other potential errors
             }
         }
+    }
+
+    /// Updates zoom from a pinch gesture scale.
+    func selectZoom(pinchScale: Double) {
+        if pinchStartZoom == nil {
+            pinchStartZoom = zoom
+        }
+
+        guard let startZoom = pinchStartZoom else {
+            return
+        }
+
+        let targetZoom = startZoom * pinchScale
+        let clampedZoom = min(max(targetZoom, zoomRange.lowerBound), zoomRange.upperBound)
+        selectZoom(clampedZoom)
+    }
+
+    /// Ends the current pinch zoom interaction.
+    func endPinchZoom() {
+        pinchStartZoom = nil
     }
     
     // MARK: - Private Methods

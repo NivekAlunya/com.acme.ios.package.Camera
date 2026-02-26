@@ -55,10 +55,15 @@ public protocol CameraProtocol: Actor {
     /// Changes the zoom factor of the camera.
     /// - Parameter factor: The desired zoom factor.
     func changeZoom(_ factor: CGFloat) throws
-
+    
     /// Switches between the front and back cameras.
     func changePosition() async throws
     /// Changes the aspect ratio for the capture session.
     /// - Parameter ratio: The `CaptureSessionAspectRatio` to use.
     func changeRatio(_ ratio: CaptureSessionAspectRatio) async
+    
+    /// Focuses the camera on a specific point in the preview.
+    /// - Parameter on: The `CGPoint` in the preview to focus on, where (0,0) is the top-left and (1,1) is the bottom-right.
+    func focus(on: CGPoint) async throws
+
 }
