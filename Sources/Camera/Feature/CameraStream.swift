@@ -22,9 +22,11 @@ actor CameraStream: CameraStreamProtocol {
 
     /// A lazy-initialized asynchronous stream of `CIImage` for camera previews.
     private(set) lazy var previewStream: AsyncStream<CIImage> = {
-        AsyncStream { continuation in
+        
+        AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
             self.previewContinuation = continuation
         }
+        
     }()
 
     /// The continuation for the photo stream, used to yield captured photos.

@@ -28,7 +28,10 @@ private enum CameraState {
 /// It can be instantiated with a custom `CameraConfiguration` to allow flexible camera setup.
 public actor Camera: NSObject {
     
-    private let context = CIContext(options: nil)
+    private var context = CIContext(options: [
+        .cacheIntermediates: false,
+        .workingFormat: CIFormat.RGBA8
+    ])
     
     /// The current camera configuration.
     public var config: CameraConfiguration
@@ -42,6 +45,11 @@ public actor Camera: NSObject {
     /// The underlying `AVCaptureSession` that manages the capture pipeline.
     private let session = AVCaptureSession()
 
+    /// A dedicated serial queue for AVCaptureSession operations.
+    /// `startRunning` and `stopRunning` are blocking calls and must not be called
+    /// on the main thread or on the actor's cooperative executor.
+    private let sessionQueue = DispatchQueue(label: "com.acme.camera.sessionQueue", qos: .userInitiated)
+
     /// The video data output for capturing preview frames.
     private let videoOutput = AVCaptureVideoDataOutput()
 
@@ -54,10 +62,8 @@ public actor Camera: NSObject {
     }
     
     /// Removes the current capture device input from the session.
+    /// Must be called after `pause()` — session is guaranteed idle at this point.
     private func removeDevice() {
-        if session.isRunning {
-            session.stopRunning()
-        }
         if let deviceInput = config.deviceInput {
             session.removeInput(deviceInput)
         }
@@ -79,11 +85,8 @@ public actor Camera: NSObject {
     }
 
     /// Sets up the capture session with a specific device.
-    /// - Parameter device: The `AVCaptureDevice` to be used for the session.
+    /// Must be called after `pause()` — session is guaranteed idle at this point.
     private func setup(device: AVCaptureDevice) throws {
-        if self.session.isRunning {
-            self.session.stopRunning()
-        }
         try config.setup(device: device, session: session, delegate: self)
     }
 
@@ -157,7 +160,7 @@ extension Camera: CameraProtocol {
     /// Starts the camera session.
     /// This method checks for authorization, sets up the camera if needed, and starts the session.
     public func start() async throws {
-        guard !self.session.isRunning else {
+        guard state != .started else {
             throw CameraError.cannotStartCamera
         }
         
@@ -182,23 +185,31 @@ extension Camera: CameraProtocol {
 
         await stream.resume()
         state = .started
-        self.session.startRunning()
+        sessionQueue.async { self.session.startRunning() }
     }
 
     /// Resumes a paused camera session.
     public func resume() async {
         await stream.resume()
         state = .started
-        self.session.startRunning()
+        sessionQueue.async { self.session.startRunning() }
     }
 
     /// Pauses the camera session and stops the preview stream.
+    /// Suspends the actor (non-blocking) until `stopRunning` has fully completed on the
+    /// session queue, guaranteeing the session is idle before callers like `changeDevice`
+    /// or `end` proceed.
     public func pause() async {
-        if session.isRunning {
-            await stream.pause()
-            state = .paused
-            self.session.stopRunning()
+        await withCheckedContinuation { continuation in
+            sessionQueue.async {
+                if self.session.isRunning {
+                    self.session.stopRunning()
+                }
+                continuation.resume()
+            }
         }
+        await stream.pause()
+        state = .paused
     }
 
     /// Ends the camera session and cleans up resources.
@@ -278,23 +289,27 @@ extension Camera: AVCapturePhotoCaptureDelegate {
         }
     }
 }
-
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate Conformance
 extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
+    
     nonisolated public func captureOutput(
         _ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
-        let image = CIImage(cvPixelBuffer: pixelBuffer, options: [.applyOrientationProperty: true])
-        Task {
-            guard let rotationCoordinator = await config.rotationCoordinator else {
-                return
+        // Wrap in autoreleasepool so the CVPixelBuffer and CIImage are released
+        // immediately after each frame, preventing memory from growing unboundedly.
+        autoreleasepool {
+            guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
+            let image = CIImage(cvPixelBuffer: pixelBuffer, options: [.applyOrientationProperty: true])
+            Task {
+                guard let rotationCoordinator = await config.rotationCoordinator else {
+                    return
+                }
+                connection.videoRotationAngle =
+                    await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
+
+                await self.stream.emitPreview(image)
             }
-            connection.videoRotationAngle =
-                await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
-            
-            await self.stream.emitPreview(image)
         }
     }
 }
