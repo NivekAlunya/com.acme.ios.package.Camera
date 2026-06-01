@@ -200,10 +200,11 @@ extension Camera: CameraProtocol {
     /// session queue, guaranteeing the session is idle before callers like `changeDevice`
     /// or `end` proceed.
     public func pause() async {
+        let session = self.session
         await withCheckedContinuation { continuation in
             sessionQueue.async {
-                if self.session.isRunning {
-                    self.session.stopRunning()
+                if session.isRunning {
+                    session.stopRunning()
                 }
                 continuation.resume()
             }
