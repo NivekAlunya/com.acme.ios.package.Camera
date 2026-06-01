@@ -15,6 +15,8 @@ private enum CameraState {
     case needSetup
     /// The user has not granted camera permissions.
     case unauthorized
+    /// The camera session is currently transitioning to running.
+    case starting
     /// The camera is running and capturing video.
     case started
     /// The camera session is paused.
@@ -160,7 +162,7 @@ extension Camera: CameraProtocol {
     /// Starts the camera session.
     /// This method checks for authorization, sets up the camera if needed, and starts the session.
     public func start() async throws {
-        guard state != .started else {
+        guard state != .started, state != .starting else {
             throw CameraError.cannotStartCamera
         }
         
@@ -184,7 +186,7 @@ extension Camera: CameraProtocol {
         }
 
         let session = self.session
-        state = .started
+        state = .starting
         await stream.resume()
         await withCheckedContinuation { continuation in
             sessionQueue.async {
@@ -194,6 +196,7 @@ extension Camera: CameraProtocol {
                 continuation.resume()
             }
         }
+        state = .started
     }
 
     /// Resumes a paused camera session.
