@@ -297,9 +297,8 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
         _ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        // Wrap in autoreleasepool so the CVPixelBuffer and CIImage are released
-        // immediately after each frame, preventing memory from growing unboundedly.
-        autoreleasepool {
+        // Use an autoreleasepool to drain temporary autoreleased objects per frame.
+        // Note: the CIImage may still be retained until downstream consumers release it.
             guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
             let image = CIImage(cvPixelBuffer: pixelBuffer, options: [.applyOrientationProperty: true])
             Task {
