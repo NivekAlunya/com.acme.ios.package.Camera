@@ -210,8 +210,16 @@ extension Camera: CameraProtocol {
     /// Resumes a paused camera session.
     public func resume() async {
         await stream.resume()
+        let session = self.session
+        await withCheckedContinuation { continuation in
+            sessionQueue.async {
+                if !session.isRunning {
+                    session.startRunning()
+                }
+                continuation.resume()
+            }
+        }
         state = .started
-        sessionQueue.async { self.session.startRunning() }
     }
 
     /// Pauses the camera session and stops the preview stream.
@@ -316,8 +324,6 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
         _ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        // Use an autoreleasepool to drain temporary autoreleased objects per frame.
-        // Note: the CIImage may still be retained until downstream consumers release it.
             guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
             let image = CIImage(cvPixelBuffer: pixelBuffer, options: [.applyOrientationProperty: true])
             Task {
