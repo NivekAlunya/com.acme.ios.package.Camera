@@ -8,7 +8,7 @@
 import AVFoundation
 
 /// A wrapper enum for `AVCaptureSession.Preset` to provide a `CaseIterable` and more convenient interface.
-public enum CaptureSessionPreset: CaseIterable {
+public enum CaptureSessionPreset: CaseIterable, Sendable {
     case photo
     case low
     case medium
