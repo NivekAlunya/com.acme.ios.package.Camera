@@ -28,7 +28,7 @@ private enum CameraState {
 /// It can be instantiated with a custom `CameraConfiguration` to allow flexible camera setup.
 public actor Camera: NSObject {
     
-    private var context = CIContext(options: [
+    private let context = CIContext(options: [
         .cacheIntermediates: false,
         .workingFormat: CIFormat.RGBA8
     ])
