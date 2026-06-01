@@ -29,12 +29,12 @@ private enum CameraState {
 /// It handles the capture session, device configuration, and data output for video and photos.
 /// It can be instantiated with a custom `CameraConfiguration` to allow flexible camera setup.
 public actor Camera: NSObject {
-    
+
     private let context = CIContext(options: [
         .cacheIntermediates: false,
         .workingFormat: CIFormat.RGBA8
     ])
-    
+
     /// The current camera configuration.
     public var config: CameraConfiguration
 
@@ -57,12 +57,12 @@ public actor Camera: NSObject {
 
     /// The current state of the camera.
     private var state = CameraState.needSetup
-    
+
     public init(config: CameraConfiguration = CameraConfiguration()) {
-        
+
         self.config = config
     }
-    
+
     /// Removes the current capture device input from the session.
     /// Must be called after `pause()` — session is guaranteed idle at this point.
     private func removeDevice() {
@@ -95,23 +95,23 @@ public actor Camera: NSObject {
     /// Processes a captured photo, converts it to a `CIImage`, and emits it through the stream.
     /// - Parameter photo: The `AVCapturePhoto` to process.
     func processPhoto(_ photo: AVCapturePhoto) async {
-        
+
         guard let ciImage = photo.buildImageForRatio(config.ratio) else {
             return
         }
-        
+
         let colorSpace = ciImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         let data = context.jpegRepresentation(of: ciImage, colorSpace: colorSpace, options: [:])
-        
+
         self.photo = PhotoCapture(data: data, metadata: photo.metadata)
-        
+
         await self.stream.emitPhoto(ciImage)
     }
 }
 
 // MARK: - CameraProtocol Conformance
 extension Camera: CameraProtocol {
-    
+
     public func focus(on: CGPoint) async throws {
         guard let device = config.deviceInput?.device else { return }
         let focusPoint = CGPoint(x: on.x, y: 1.0 - on.y) // Convert to device coordinates
@@ -130,7 +130,7 @@ extension Camera: CameraProtocol {
             throw CameraError.focusFailed
         }
     }
-    
+
     public func changeRatio(_ ratio: CaptureSessionAspectRatio) async {
         self.config.ratio = ratio
     }
@@ -158,7 +158,7 @@ extension Camera: CameraProtocol {
             throw CameraError.zoomUpdateFailed
         }
     }
-    
+
     /// Starts the camera session.
     /// This method checks for authorization, sets up the camera if needed, and starts the session.
     public func start() async throws {
@@ -174,7 +174,7 @@ extension Camera: CameraProtocol {
                 state = .unauthorized
                 throw CameraError.cameraUnauthorized
             }
-            
+
             switch previousState {
             case .needSetup:
                 guard let device = config.getDefaultCamera() else {
@@ -246,7 +246,7 @@ extension Camera: CameraProtocol {
         await stream.finish()
         state = .ended
     }
-    
+
     /// Captures a photo.
     /// This method configures photo settings, including orientation and flash, and initiates the capture.
     public func takePhoto() async {
@@ -319,22 +319,24 @@ extension Camera: AVCapturePhotoCaptureDelegate {
 }
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate Conformance
 extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
-    
+
     nonisolated public func captureOutput(
         _ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-            guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
-            let image = CIImage(cvPixelBuffer: pixelBuffer, options: [.applyOrientationProperty: true])
-            Task {
-                guard let rotationCoordinator = await config.rotationCoordinator else {
-                    return
-                }
-                connection.videoRotationAngle =
-                    await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
-
-                await self.stream.emitPreview(image)
+        guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
+        let image = CIImage(
+            cvPixelBuffer: pixelBuffer,
+            options: [.applyOrientationProperty: true]
+        )
+        Task {
+            guard let rotationCoordinator = await config.rotationCoordinator else {
+                return
             }
+            connection.videoRotationAngle =
+            await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
+
+            await self.stream.emitPreview(image)
         }
     }
 }
