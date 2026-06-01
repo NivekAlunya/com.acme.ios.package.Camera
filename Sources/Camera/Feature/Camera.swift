@@ -183,9 +183,17 @@ extension Camera: CameraProtocol {
             break
         }
 
-        await stream.resume()
+        let session = self.session
         state = .started
-        sessionQueue.async { self.session.startRunning() }
+        await stream.resume()
+        await withCheckedContinuation { continuation in
+            sessionQueue.async {
+                if !session.isRunning {
+                    session.startRunning()
+                }
+                continuation.resume()
+            }
+        }
     }
 
     /// Resumes a paused camera session.
