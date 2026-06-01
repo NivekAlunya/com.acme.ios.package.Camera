@@ -165,38 +165,46 @@ extension Camera: CameraProtocol {
         guard state != .started, state != .starting else {
             throw CameraError.cannotStartCamera
         }
-        
-        let authorized = await CameraHelper.checkAuthorization()
-        guard authorized else {
-            state = .unauthorized
-            throw CameraError.cameraUnauthorized
-        }
-        
-        switch state {
-        case .needSetup:
-            guard let device = config.getDefaultCamera() else {
-                throw CameraError.cameraUnavailable
-            }
-            try setup(device: device)
-            await createStreams()
-        case .ended:
-            await createStreams()
-        default:
-            break
-        }
 
-        let session = self.session
+        let previousState = state
         state = .starting
-        await stream.resume()
-        await withCheckedContinuation { continuation in
-            sessionQueue.async {
-                if !session.isRunning {
-                    session.startRunning()
-                }
-                continuation.resume()
+        do {
+            let authorized = await CameraHelper.checkAuthorization()
+            guard authorized else {
+                state = .unauthorized
+                throw CameraError.cameraUnauthorized
             }
+            
+            switch previousState {
+            case .needSetup:
+                guard let device = config.getDefaultCamera() else {
+                    throw CameraError.cameraUnavailable
+                }
+                try setup(device: device)
+                await createStreams()
+            case .ended:
+                await createStreams()
+            default:
+                break
+            }
+
+            let session = self.session
+            await stream.resume()
+            await withCheckedContinuation { continuation in
+                sessionQueue.async {
+                    if !session.isRunning {
+                        session.startRunning()
+                    }
+                    continuation.resume()
+                }
+            }
+            state = .started
+        } catch {
+            if state == .starting {
+                state = previousState
+            }
+            throw error
         }
-        state = .started
     }
 
     /// Resumes a paused camera session.
