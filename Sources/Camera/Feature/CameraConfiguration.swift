@@ -59,14 +59,13 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
     public private(set) var photoOutput: AVCapturePhotoOutput
 
     /// The output for capturing video preview frames.
-    private let videoOutput = AVCaptureVideoDataOutput()
+    let videoOutput = AVCaptureVideoDataOutput()
 
     /// A flag indicating whether the outputs have been set up.
     private var isOutputSetup = false
 
     /// The maximum zoom factor allowed.
     private let maxZoom = 25.0
-    
 
     // MARK: - Initialization
 

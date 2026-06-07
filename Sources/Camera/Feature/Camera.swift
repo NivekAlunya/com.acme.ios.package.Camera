@@ -47,11 +47,11 @@ public actor Camera: NSObject {
     /// on the main thread or on the actor's cooperative executor.
     private let sessionQueue = DispatchQueue(label: "com.acme.camera.sessionQueue", qos: .userInitiated)
 
-    /// The video data output for capturing preview frames.
-    private let videoOutput = AVCaptureVideoDataOutput()
-
     /// The current state of the camera.
     private var state = CameraState.needSetup
+
+    /// Observation for device rotation changes.
+    private var rotationObservation: NSKeyValueObservation?
 
     public init(config: CameraConfiguration = CameraConfiguration()) {
 
@@ -90,15 +90,14 @@ public actor Camera: NSObject {
     /// Processes a captured photo, converts it to a `CIImage`, and emits it through the stream.
     /// - Parameter photo: The `AVCapturePhoto` to process.
     func processPhoto(_ photo: AVCapturePhoto) async {
+        // 1. Preserve the original high-quality "Photo Mode" data.
+        let fullData = photo.fileDataRepresentation()
+        self.photo = PhotoCapture(data: fullData, metadata: photo.metadata)
 
+        // 2. Build the cropped CIImage for the preview/validation stream.
         guard let ciImage = photo.buildImageForRatio(config.ratio) else {
             return
         }
-
-        let colorSpace = ciImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-        let data = sharedCIContext.jpegRepresentation(of: ciImage, colorSpace: colorSpace, options: [:])
-
-        self.photo = PhotoCapture(data: data, metadata: photo.metadata)
 
         await self.stream.emitPhoto(ciImage)
     }
@@ -158,12 +157,21 @@ extension Camera: CameraProtocol {
     private func updateRotationAngle() {
         let angle = config.rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90.0
         
-        if let connection = videoOutput.connection(with: .video) {
+        if let connection = config.videoOutput.connection(with: .video) {
             connection.videoRotationAngle = angle
         }
         
         if let photoConnection = config.photoOutput.connection(with: .video) {
             photoConnection.videoRotationAngle = angle
+        }
+    }
+
+    /// Sets up observation for rotation changes.
+    private func setupRotationObservation() {
+        rotationObservation = config.rotationCoordinator?.observe(\.videoRotationAngleForHorizonLevelCapture, options: [.new]) { [weak self] _, _ in
+            Task { [weak self] in
+                await self?.updateRotationAngle()
+            }
         }
     }
 
@@ -197,6 +205,7 @@ extension Camera: CameraProtocol {
             }
 
             updateRotationAngle()
+            setupRotationObservation()
             
             let session = self.session
             await stream.resume()
@@ -221,6 +230,7 @@ extension Camera: CameraProtocol {
     public func resume() async {
         await stream.resume()
         updateRotationAngle()
+        setupRotationObservation()
         let session = self.session
         await withCheckedContinuation { continuation in
             sessionQueue.async {
@@ -238,6 +248,8 @@ extension Camera: CameraProtocol {
     /// session queue, guaranteeing the session is idle before callers like `changeDevice`
     /// or `end` proceed.
     public func pause() async {
+        rotationObservation?.invalidate()
+        rotationObservation = nil
         let session = self.session
         await withCheckedContinuation { continuation in
             sessionQueue.async {
@@ -333,7 +345,10 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
         from connection: AVCaptureConnection
     ) {
         guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
-        let image = CIImage(cvPixelBuffer: pixelBuffer)
+        let image = CIImage(
+            cvPixelBuffer: pixelBuffer,
+            options: [.applyOrientationProperty: true]
+        )
         
         Task {
             await self.stream.emitPreview(image)

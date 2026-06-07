@@ -11,7 +11,7 @@ import CoreGraphics
  
 /// A shared `CIContext` for performance. Creating a `CIContext` is expensive,
 /// so it should be initialized once and reused.
-private let sharedCIContext = CIContext()
+internal let sharedCIContext = CIContext()
 
 extension CIImage {
     /// Asynchronously converts a `CIImage` to a `CGImage`.
