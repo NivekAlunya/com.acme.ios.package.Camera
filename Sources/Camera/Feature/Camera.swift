@@ -30,11 +30,6 @@ private enum CameraState {
 /// It can be instantiated with a custom `CameraConfiguration` to allow flexible camera setup.
 public actor Camera: NSObject {
 
-    private let context = CIContext(options: [
-        .cacheIntermediates: false,
-        .workingFormat: CIFormat.RGBA8
-    ])
-
     /// The current camera configuration.
     public var config: CameraConfiguration
 
@@ -101,7 +96,7 @@ public actor Camera: NSObject {
         }
 
         let colorSpace = ciImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-        let data = context.jpegRepresentation(of: ciImage, colorSpace: colorSpace, options: [:])
+        let data = sharedCIContext.jpegRepresentation(of: ciImage, colorSpace: colorSpace, options: [:])
 
         self.photo = PhotoCapture(data: data, metadata: photo.metadata)
 
@@ -159,6 +154,19 @@ extension Camera: CameraProtocol {
         }
     }
 
+    /// Updates the rotation angle for both preview and photo outputs.
+    private func updateRotationAngle() {
+        let angle = config.rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90.0
+        
+        if let connection = videoOutput.connection(with: .video) {
+            connection.videoRotationAngle = angle
+        }
+        
+        if let photoConnection = config.photoOutput.connection(with: .video) {
+            photoConnection.videoRotationAngle = angle
+        }
+    }
+
     /// Starts the camera session.
     /// This method checks for authorization, sets up the camera if needed, and starts the session.
     public func start() async throws {
@@ -188,6 +196,8 @@ extension Camera: CameraProtocol {
                 break
             }
 
+            updateRotationAngle()
+            
             let session = self.session
             await stream.resume()
             await withCheckedContinuation { continuation in
@@ -210,6 +220,7 @@ extension Camera: CameraProtocol {
     /// Resumes a paused camera session.
     public func resume() async {
         await stream.resume()
+        updateRotationAngle()
         let session = self.session
         await withCheckedContinuation { continuation in
             sessionQueue.async {
@@ -250,10 +261,7 @@ extension Camera: CameraProtocol {
     /// Captures a photo.
     /// This method configures photo settings, including orientation and flash, and initiates the capture.
     public func takePhoto() async {
-        if let photoOutputVideoConnection = self.config.photoOutput.connection(with: .video),
-           let videoOrientation = CameraHelper.videoOrientationFor(deviceOrientation: config.rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90.0) {
-            photoOutputVideoConnection.videoOrientation = videoOrientation
-        }
+        updateRotationAngle()
         await stream.pause()
         let photoSettings = await config.buildPhotoSettings()
         photoSettings.flashMode = config.flashMode.avFlashMode
@@ -325,17 +333,9 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
         from connection: AVCaptureConnection
     ) {
         guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
-        let image = CIImage(
-            cvPixelBuffer: pixelBuffer,
-            options: [.applyOrientationProperty: true]
-        )
+        let image = CIImage(cvPixelBuffer: pixelBuffer)
+        
         Task {
-            guard let rotationCoordinator = await config.rotationCoordinator else {
-                return
-            }
-            connection.videoRotationAngle =
-            await rotationCoordinator.videoRotationAngleForHorizonLevelCapture
-
             await self.stream.emitPreview(image)
         }
     }
