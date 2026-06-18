@@ -210,49 +210,54 @@ extension CameraView {
         var onCancel: (() -> Void)
 
         var body: some View {
-            GlassEffectContainer {
-                HStack(spacing: 16) {
-                    Group {
-                        switch model.state {
-                        case .previewing:
-                            CancelButton(onCancel: onCancel)
-                            SettingsButton(isSettingShown: $isSettingShown)
-                            SwitchRatioButton(ratio: model.ratio) {
-                                Task { await model.handleSwitchRatio() }
+            VStack {
+                GlassEffectContainer {
+                    HStack {
+                        Group {
+                            switch model.state {
+                            case .previewing:
+                                CancelButton(onCancel: onCancel)
+                                SettingsButton(isSettingShown: $isSettingShown)
+                                SwitchRatioButton(ratio: model.ratio) {
+                                    Task { await model.handleSwitchRatio() }
+                                }
+                                SwitchPositionButton {
+                                    Task { await model.handleSwitchPosition() }
+                                }
+                            case .processing, .loading, .accepted:
+                                EmptyView()
+                            case .validating:
+                                RejectButton {
+                                    Task { await model.handleRejectPhoto() }
+                                }
+                                Spacer().frame(width: 20)
+                                AcceptButton {
+                                    Task { await model.handleAcceptPhoto() }
+                                }
+                            case .unauthorized:
+                                OpenSettingsButton()
+                                CancelButton(onCancel: onCancel)
                             }
-                            SwitchPositionButton {
-                                Task { await model.handleSwitchPosition() }
-                            }
-                            TakePhotoButton {
-                                Task { await model.handleTakePhoto() }
-                            }
-
-                        case .processing, .loading, .accepted:
-                            EmptyView()
-                        case .validating:
-                            RejectButton {
-                                Task { await model.handleRejectPhoto() }
-                            }
-                            .frame(maxWidth: .infinity)
-                            AcceptButton {
-                                Task { await model.handleAcceptPhoto() }
-                            }
-                            .frame(maxWidth: .infinity)
-                        case .unauthorized:
-
-                            OpenSettingsButton()
-                                .frame(maxWidth: .infinity)
-                            CancelButton(onCancel: onCancel)
-                                .frame(maxWidth: .infinity)
                         }
+                        .buttonStyle(.plain)
+                        .padding()
+                        .font(.title.bold())
+                        .glassEffect(.clear)
+                        .glassEffectUnion(id: 1, namespace: namespace)
                     }
-                    .buttonStyle(.plain)
-                    .padding()
-                    .font(.title.bold())
-                    .glassEffect(.clear)
-                    .glassEffectUnion(id: 1, namespace: namespace)
                 }
-                .padding()
+                if model.state == .previewing {
+                    Spacer().frame(height: 20)
+                    TakePhotoButton {
+                        Task { await model.handleTakePhoto() }
+                    }
+                }
+//                .buttonStyle(.plain)
+//                .padding()
+//                .font(.title.bold())
+//                .glassEffect(.clear)
+//                .glassEffectUnion(id: 1, namespace: namespace)
+
             }
         }
     }
@@ -333,7 +338,15 @@ extension CameraView {
         var action: () -> Void
         var body: some View {
             Button(action: action) {
-                Image(systemName: "circle.circle.fill")
+                Circle()
+                    .strokeBorder(Color.white, lineWidth: 4)
+                    .frame(width: 70, height: 70)
+                    .overlay(
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 60, height: 60)
+                    )
+//                Image(systemName: "circle.circle.fill")
             }
             .accessibilityLabel(CameraHelper.stringFrom("accessibility_take_photo", bundle: bundle))
         }
