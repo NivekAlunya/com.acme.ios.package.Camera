@@ -90,15 +90,18 @@ public actor Camera: NSObject {
     /// Processes a captured photo, converts it to a `CIImage`, and emits it through the stream.
     /// - Parameter photo: The `AVCapturePhoto` to process.
     func processPhoto(_ photo: AVCapturePhoto) async {
-        // 1. Preserve the original high-quality "Photo Mode" data.
-        let fullData = photo.fileDataRepresentation()
-        self.photo = PhotoCapture(data: fullData, metadata: photo.metadata)
-
-        // 2. Build the cropped CIImage for the preview/validation stream.
+        // 1. Build the cropped CIImage for the preview/validation stream and final storage.
         guard let ciImage = photo.buildImageForRatio(config.ratio) else {
             return
         }
 
+        // 2. Convert the cropped CIImage back to Data to preserve the crop in the final output.
+        let croppedData = await ciImage.toJPEGData()
+        
+        // 3. Preserve the cropped data and original metadata.
+        self.photo = PhotoCapture(data: croppedData, metadata: photo.metadata)
+
+        // 4. Emit the cropped image for the validation UI.
         await self.stream.emitPhoto(ciImage)
     }
 }

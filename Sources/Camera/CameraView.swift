@@ -16,7 +16,6 @@ extension EnvironmentValues {
 /// The main SwiftUI view for the camera interface.
 /// It provides a full-screen camera preview, controls for taking photos, and a settings sheet.
 public struct CameraView: View {
-    
     /// A closure that is called when the user finishes the capture flow.
     /// - Parameters:
     ///   - photo: The captured `Photo`, or `nil` if the user cancels.

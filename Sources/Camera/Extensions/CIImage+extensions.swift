@@ -28,4 +28,12 @@ extension CIImage {
             return cgImage
         }.value
     }
+
+    /// Asynchronously converts a `CIImage` to JPEG data.
+    public func toJPEGData() async -> Data? {
+        return await Task.detached {
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            return sharedCIContext.jpegRepresentation(of: self, colorSpace: colorSpace, options: [:])
+        }.value
+    }
 }
