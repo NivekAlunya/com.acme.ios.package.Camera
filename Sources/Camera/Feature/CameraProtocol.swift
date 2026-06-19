@@ -21,6 +21,9 @@ public protocol CameraProtocol: Actor {
     /// The most recently captured photo.
     var photo: PhotoCapture? { get }
 
+    /// The underlying `AVCaptureSession`.
+    var session: AVCaptureSession { get }
+
     /// Changes the capture session preset.
     /// - Parameter preset: The `CaptureSessionPreset` to apply.
     func changePreset(preset: CaptureSessionPreset)
@@ -61,7 +64,11 @@ public protocol CameraProtocol: Actor {
     /// Changes the aspect ratio for the capture session.
     /// - Parameter ratio: The `CaptureSessionAspectRatio` to use.
     func changeRatio(_ ratio: CaptureSessionAspectRatio) async
-    
+
+    /// Changes the preview mode.
+    /// - Parameter mode: The `CameraPreviewMode` to use.
+    func changePreviewMode(_ mode: CameraPreviewMode) async
+
     /// Focuses the camera on a specific point in the preview.
     /// - Parameter on: The `CGPoint` in the preview to focus on, where (0,0) is the top-left and (1,1) is the bottom-right.
     func focus(on: CGPoint) async throws

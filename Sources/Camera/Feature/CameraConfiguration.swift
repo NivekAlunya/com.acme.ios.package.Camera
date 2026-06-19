@@ -7,6 +7,21 @@
 
 import AVFoundation
 
+/// The mode for displaying the camera preview.
+public enum CameraPreviewMode: Sendable {
+    /// Use a standard SwiftUI `Image` updated from a `CIImage` stream.
+    case streaming
+    /// Use a native `AVCaptureVideoPreviewLayer`.
+    case native
+    
+    public var stringKey: String {
+        switch self {
+        case .streaming: return "preview_mode_streaming"
+        case .native: return "preview_mode_native"
+        }
+    }
+}
+
 /// A struct that holds all the configuration settings for the camera.
 public struct CameraConfiguration: Hashable, @unchecked Sendable {
 
@@ -15,6 +30,9 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
 
     /// The active camera device input.
     public private(set) var deviceInput: AVCaptureDeviceInput?
+    
+    /// The mode for the camera preview.
+    public var previewMode: CameraPreviewMode = .streaming
 
     /// The rotation coordinator for handling device orientation.
     var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
@@ -78,7 +96,8 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         quality: AVCapturePhotoOutput.QualityPrioritization = .balanced,
         preset: CaptureSessionPreset = .photo,
         photoOutput: AVCapturePhotoOutput = AVCapturePhotoOutput(),
-        aspectRatio: CaptureSessionAspectRatio = .defaultAspectRatio
+        aspectRatio: CaptureSessionAspectRatio = .defaultAspectRatio,
+        previewMode: CameraPreviewMode = .streaming
     ) {
         self.deviceInput = deviceInput
         self.flashMode = flashMode
@@ -89,6 +108,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         self.preset = preset
         self.photoOutput = photoOutput
         self.ratio = aspectRatio
+        self.previewMode = previewMode
         refreshAvailableDevices()
     }
     

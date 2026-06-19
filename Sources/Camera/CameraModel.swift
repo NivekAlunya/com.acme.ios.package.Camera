@@ -63,6 +63,10 @@ public class CameraModel {
     var error: CameraError?
     /// The current camera preview image.
     var preview: Image?
+    /// The current preview mode.
+    var previewMode: CameraPreviewMode = .streaming
+    /// The underlying `AVCaptureSession`.
+    var session: AVCaptureSession?
     /// The captured photo and its configuration.
     var capture: Capture?
     /// The current camera position (front or back).
@@ -116,15 +120,13 @@ public class CameraModel {
         state = .loading
         do {
             self.ratio = await camera.config.ratio
-            
+            self.previewMode = await camera.config.previewMode
+            self.selectPreviewMode(self.previewMode)
+            self.session = await camera.session
             try await camera.start()
-            
-            previewTask = Task { await listenCameraPreviews() }
-            photoTask = Task { await listenPhotoCapture() }
-            
+            photoTask = Task { await listenPhotoCapture() }            
             await loadSettings()
         } catch (let error as CameraError) {
-
             if error == .cameraUnauthorized {
                 state = .unauthorized
             }
@@ -157,7 +159,6 @@ public class CameraModel {
         state = .processing
         await camera.takePhoto()
     }
-
 
     func handleSwitchRatio() async {
         let newRatio: CaptureSessionAspectRatio
@@ -208,6 +209,26 @@ public class CameraModel {
 
     
     // MARK: - Settings Selection
+
+    /// Selects a new preview mode.
+    func selectPreviewMode(_ previewMode: CameraPreviewMode) {
+        print("CameraModel: Selecting preview mode \(previewMode)")
+        self.previewMode = previewMode
+        previewTask?.cancel()
+        
+        if previewMode == .streaming {
+            Task {
+                await camera.stream.resume()
+                await listenCameraPreviews()
+            }
+        }
+
+        state = .previewing
+
+        Task {
+            await camera.changePreviewMode(previewMode)
+        }
+    }
 
     /// Selects a new session preset.
     func selectPreset(_ preset: CaptureSessionPreset) {

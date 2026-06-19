@@ -72,7 +72,11 @@ public class CameraHelper {
     ///   - string: The key for the localized string.
     ///   - bundle: The bundle where the `Camera.xcstrings` file is located.
     /// - Returns: A `LocalizedStringResource` ready to be used in SwiftUI views.
-    static func stringFrom(_ string: String, bundle: Bundle) -> LocalizedStringResource {
-        return LocalizedStringResource(String.LocalizationValue(string), table: "Camera", bundle: .atURL(bundle.bundleURL))
+    static func stringFrom(_ string: String, bundle: Bundle) -> String {
+        let requestedStr = String(localized: String.LocalizationValue(string), table: "Camera", bundle: bundle)
+        if requestedStr == string && bundle != .module {
+            return String(localized: String.LocalizationValue(string), table: "Camera", bundle: .module)
+        }
+        return requestedStr
     }
 }

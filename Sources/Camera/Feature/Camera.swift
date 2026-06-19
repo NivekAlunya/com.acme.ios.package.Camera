@@ -40,7 +40,7 @@ public actor Camera: NSObject {
     private(set) public var photo: PhotoCapture?
 
     /// The underlying `AVCaptureSession` that manages the capture pipeline.
-    private let session = AVCaptureSession()
+    public let session = AVCaptureSession()
 
     /// A dedicated serial queue for AVCaptureSession operations.
     /// `startRunning` and `stopRunning` are blocking calls and must not be called
@@ -130,6 +130,10 @@ extension Camera: CameraProtocol {
 
     public func changeRatio(_ ratio: CaptureSessionAspectRatio) async {
         self.config.ratio = ratio
+    }
+
+    public func changePreviewMode(_ mode: CameraPreviewMode) async {
+        self.config.previewMode = mode
     }
 
     /// Changes the zoom factor of the camera.
