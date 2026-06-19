@@ -358,6 +358,7 @@ extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {
         )
         
         Task {
+            guard await self.config.previewMode == .streaming else { return }
             await self.stream.emitPreview(image)
         }
     }

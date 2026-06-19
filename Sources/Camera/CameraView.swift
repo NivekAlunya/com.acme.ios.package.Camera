@@ -88,19 +88,27 @@ public struct CameraView: View {
     public var body: some View {
         GeometryReader { reader in
             ZStack {
-                ImagePreview(image: model.preview)
-                    .overlay(alignment: .center) {
-                        if reader.size.width > 0 && reader.size.height > 0,
-                           let targetSize = model.ratio.targetSize(for: reader.size) {
-                            ZStack {
-                                Color.black.opacity(0.8)
-                                Rectangle()
-                                    .blendMode(.destinationOut)
-                                    .frame(width: targetSize.width, height: targetSize.height)
-                            }
-                            .compositingGroup()
-                        }
+                Group {
+                    if model.state == .validating {
+                        ImagePreview(image: model.preview)
+                    } else if model.previewMode == .native, let session = model.session {
+                        NativePreviewView(session: session)
+                    } else {
+                        ImagePreview(image: model.preview)
                     }
+                }
+                .overlay(alignment: .center) {
+                    if reader.size.width > 0 && reader.size.height > 0,
+                       let targetSize = model.ratio.targetSize(for: reader.size) {
+                        ZStack {
+                            Color.black.opacity(0.8)
+                            Rectangle()
+                                .blendMode(.destinationOut)
+                                .frame(width: targetSize.width, height: targetSize.height)
+                        }
+                        .compositingGroup()
+                    }
+                }
             }
             .background(Color(UIColor.systemBackground))
         }
@@ -251,12 +259,6 @@ extension CameraView {
                         Task { await model.handleTakePhoto() }
                     }
                 }
-//                .buttonStyle(.plain)
-//                .padding()
-//                .font(.title.bold())
-//                .glassEffect(.clear)
-//                .glassEffectUnion(id: 1, namespace: namespace)
-
             }
         }
     }
