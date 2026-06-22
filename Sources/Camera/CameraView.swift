@@ -197,9 +197,9 @@ public struct CameraView: View {
         }
         .alert(isPresented: $showErrorAlert) {
             Alert(
-                title: Text(CameraHelper.stringFrom("alert_error_camera", bundle: bundle)),
-                message: Text(CameraHelper.stringFrom(model.error?.stringKey ?? "error_unknown", bundle: bundle)),
-                dismissButton: .default(Text(CameraHelper.stringFrom("OK", bundle: bundle))) {
+                title: Text("alert_error_camera".cameraLocalized(bundle: bundle)),
+                message: Text((model.error?.stringKey ?? "error_unknown").cameraLocalized(bundle: bundle)),
+                dismissButton: .default(Text("OK".cameraLocalized(bundle: bundle))) {
                     model.error = nil
                 }
             )
@@ -280,7 +280,7 @@ extension CameraView {
             Button(action: onCancel) {
                 Image(systemName: "xmark.circle")
             }
-            .accessibilityLabel(CameraHelper.stringFrom("accessibility_close_camera", bundle: bundle))
+            .accessibilityLabel("accessibility_close_camera".cameraLocalized(bundle: bundle))
         }
     }
     
@@ -298,7 +298,7 @@ extension CameraView {
             label: {
                 Image(systemName: "gear.badge.xmark")
             }
-            .accessibilityLabel(CameraHelper.stringFrom("accessibility_open_application_settings", bundle: bundle))
+            .accessibilityLabel("accessibility_open_application_settings".cameraLocalized(bundle: bundle))
         }
     }
 
@@ -314,7 +314,7 @@ extension CameraView {
             } label: {
                 Image(systemName: "gear.circle.fill")
             }
-            .accessibilityLabel(CameraHelper.stringFrom("accessibility_open_settings", bundle: bundle))
+            .accessibilityLabel("accessibility_open_settings".cameraLocalized(bundle: bundle))
         }
     }
 
@@ -326,7 +326,7 @@ extension CameraView {
             Button(action: action) {
                 Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
             }
-            .accessibilityLabel(CameraHelper.stringFrom("accessibility_switch_front_back", bundle: bundle))
+            .accessibilityLabel("accessibility_switch_front_back".cameraLocalized(bundle: bundle))
         }
     }
 
@@ -338,7 +338,7 @@ extension CameraView {
             Button(action: action) {
                 Image(systemName: ratio.getSfSymbol())
             }
-            .accessibilityLabel(CameraHelper.stringFrom("accessibility_switch_ratio", bundle: bundle))
+            .accessibilityLabel("accessibility_switch_ratio".cameraLocalized(bundle: bundle))
         }
     }
     
@@ -358,7 +358,7 @@ extension CameraView {
                     )
 //                Image(systemName: "circle.circle.fill")
             }
-            .accessibilityLabel(CameraHelper.stringFrom("accessibility_take_photo", bundle: bundle))
+            .accessibilityLabel("accessibility_take_photo".cameraLocalized(bundle: bundle))
         }
     }
 
@@ -370,7 +370,7 @@ extension CameraView {
             Button(action: action) {
                 Image(systemName: "xmark.circle.fill")
             }
-            .accessibilityLabel(CameraHelper.stringFrom("accessibility_reject_photo", bundle: bundle))
+            .accessibilityLabel("accessibility_reject_photo".cameraLocalized(bundle: bundle))
         }
     }
 
@@ -382,7 +382,7 @@ extension CameraView {
             Button(action: action) {
                 Image(systemName: "checkmark.circle.fill")
             }
-            .accessibilityLabel(CameraHelper.stringFrom("accessibility_accept_photo", bundle: bundle))
+            .accessibilityLabel("accessibility_accept_photo".cameraLocalized(bundle: bundle))
         }
     }
 
@@ -404,25 +404,25 @@ extension CameraView {
             TabView(selection: $tabSelection) {
                 PresetSettingsView(model: model)
                     .tabItem {
-                        Label(CameraHelper.stringFrom("option_title_quality", bundle: bundle), systemImage: "slider.horizontal.3")
+                        Label("option_title_quality".cameraLocalized(bundle: bundle), systemImage: "slider.horizontal.3")
                     }
                     .tag(1)
 
                 DeviceSettingsView(model: model)
                     .tabItem {
-                        Label(CameraHelper.stringFrom("option_title_camera", bundle: bundle), systemImage: "camera.on.rectangle")
+                        Label("option_title_camera".cameraLocalized(bundle: bundle), systemImage: "camera.on.rectangle")
                             .accentColor(Color.green)
                     }
                     .tag(2)
 
                 FormatSettingsView(model: model)
                     .tabItem {
-                        Label(CameraHelper.stringFrom("option_title_format", bundle: bundle), systemImage: "photo.badge.arrow.down")
+                        Label("option_title_format".cameraLocalized(bundle: bundle), systemImage: "photo.badge.arrow.down")
                     }
                     .tag(3)
                 FlashModeSettingsView(model: model)
                     .tabItem {
-                        Label(CameraHelper.stringFrom("option_title_flash_mode", bundle: bundle), systemImage: "bolt.fill")
+                        Label("option_title_flash_mode".cameraLocalized(bundle: bundle), systemImage: "bolt.fill")
                     }
                     .tag(4)
             }
@@ -448,12 +448,12 @@ extension CameraView {
         let model: CameraModel
         var body: some View {
             List {
-                Section(header: Text(CameraHelper.stringFrom("option_title_quality", bundle: bundle)).bold()) {
+                Section(header: Text("option_title_quality".cameraLocalized(bundle: bundle)).bold()) {
                     ForEach(model.presets, id: \.self) { preset in
                         let selected = preset == model.selectedPreset
                         Button(action: { model.selectPreset(preset) }) {
                             HStack {
-                                Text(CameraHelper.stringFrom(preset.stringKey, bundle: bundle))
+                                Text(preset.stringKey.cameraLocalized(bundle: bundle))
                                     .fontWeight(selected ? .bold : .regular)
                                 Spacer()
                                 if selected {
@@ -476,7 +476,7 @@ extension CameraView {
 
         var body: some View {
             List {
-                Section(header: Text(CameraHelper.stringFrom("option_title_camera", bundle: bundle)).bold()) {
+                Section(header: Text("option_title_camera".cameraLocalized(bundle: bundle)).bold()) {
                     VStack {
                         Slider(value: Binding(
                             get: { model.displayZoom },
@@ -510,9 +510,9 @@ extension CameraView {
         let model: CameraModel
         var body: some View {
             List {
-                Section(header: Text(CameraHelper.stringFrom("option_title_format", bundle: bundle)).bold()) {
+                Section(header: Text("option_title_format".cameraLocalized(bundle: bundle)).bold()) {
                     ForEach(model.formats, id: \.self) { format in
-                        ListRow(text: Text(CameraHelper.stringFrom(format.stringKey, bundle: bundle)),
+                        ListRow(text: Text(format.stringKey.cameraLocalized(bundle: bundle)),
                                 selected: format == model.selectedFormat) {
                             model.selectFormat(format)
                         }
@@ -529,9 +529,9 @@ extension CameraView {
         let model: CameraModel
         var body: some View {
             List {
-                Section(header: Text(CameraHelper.stringFrom("option_title_flash_mode", bundle: bundle)).bold()) {
+                Section(header: Text("option_title_flash_mode".cameraLocalized(bundle: bundle)).bold()) {
                     ForEach(model.flashModes, id: \.self) { flashMode in
-                        ListRow(text: Text(CameraHelper.stringFrom(flashMode.stringKey, bundle: bundle)),
+                        ListRow(text: Text(flashMode.stringKey.cameraLocalized(bundle: bundle)),
                                 selected: flashMode == model.selectedFlashMode) {
                             model.selectFlashMode(flashMode)
                         }

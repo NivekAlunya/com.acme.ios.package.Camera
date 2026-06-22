@@ -9,6 +9,9 @@ import Foundation
 import UIKit
 import SwiftUI
 @preconcurrency import AVFoundation
+import os
+
+private let logger = Logger(subsystem: "com.acme.ios.package.Camera", category: "CameraModel")
 
 /// The `CameraModel` is an `ObservableObject` that acts as the primary view model for the camera UI.
 /// It manages the camera's state, handles user interactions, and provides data streams for the view to consume.
@@ -239,9 +242,7 @@ public class CameraModel {
 
     /// Selects a new preview mode.
     func selectPreviewMode(_ previewMode: CameraPreviewMode) {
-        #if DEBUG
-        print("CameraModel: Selecting preview mode \(previewMode)")
-        #endif
+        logger.debug("Selecting preview mode \(previewMode)")
         self.previewMode = previewMode
         previewTask?.cancel()
 
