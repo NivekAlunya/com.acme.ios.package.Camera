@@ -1,25 +1,33 @@
 name: AI PR Reviewer
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, reopened]
-  pull_request_review_comment:
+  issue_comment:
     types: [created]
+
 permissions:
   contents: read
   pull-requests: write
+  issues: write
+
 jobs:
   review:
     runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null)
     steps:
       - uses: actions/checkout@v4
-      - uses: coderabbitai/ai-pr-reviewer@latest # Fixed: was coderabbit-ai (with hyphen)
+
+      - name: AI PR Review
+        uses: Codium-ai/pr-agent@main
         env:
+          OPENAI.KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENAI.API_BASE: "https://api.mistral.ai/v1"
+          OPENAI.API_TYPE: "openai"
+          CONFIG.MODEL: "mistral-large-latest"
+          CONFIG.MODEL_WEAK: "mistral-small-latest"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-        with:
-          openai_base_url: "https://api.mistral.ai/v1"
-          openai_light_model: "mistral-tiny-latest"
-          openai_heavy_model: "mistral-large-latest"
-          system_message: |
-            You are an AI code reviewer. Analyze the changes, suggest improvements, and ensure best practices.
-          exclude_files: "*.md,*.txt"
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "true"
+          github_action_config.auto_improve: "true"
