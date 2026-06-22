@@ -79,5 +79,13 @@ public class CameraHelper {
         }
         return requestedStr
     }
-    
+}
+
+extension String {
+    /// Localizes the string using the Camera table with bundle fallback logic.
+    /// - Parameter bundle: The bundle to check first.
+    /// - Returns: A localized string.
+    public func cameraLocalized(bundle: Bundle) -> String {
+        CameraHelper.stringFrom(self, bundle: bundle)
+    }
 }
