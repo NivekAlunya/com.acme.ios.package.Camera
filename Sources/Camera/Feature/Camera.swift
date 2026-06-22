@@ -71,6 +71,7 @@ public actor Camera: NSObject {
     private func changeDevice(device: AVCaptureDevice) async throws {
         await pause()
         removeDevice()
+        try setup(device: device)
         try await start()
     }
 

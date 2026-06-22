@@ -19,6 +19,24 @@ public class CameraModel {
     /// A type alias for the data captured when a photo is taken.
     typealias Capture = (photo: PhotoCapture?, config: CameraConfiguration?)
 
+    /// Whether the currently selected device is the ultra-wide camera,
+    /// which uses a 0.5× equivalent scale instead of 1×.
+    var usesUltraWideEquivalentScale: Bool {
+        selectedDevice?.deviceType == .builtInUltraWideCamera
+    }
+
+    /// The zoom factor expressed in user-facing equivalent scale (0.5× for ultra-wide, 1× base otherwise).
+    var displayZoom: Double {
+        usesUltraWideEquivalentScale ? zoom / 2.0 : zoom
+    }
+
+    /// The zoom range expressed in user-facing equivalent scale.
+    var displayZoomRange: ClosedRange<Double> {
+        usesUltraWideEquivalentScale
+            ? (zoomRange.lowerBound / 2.0)...(zoomRange.upperBound / 2.0)
+            : zoomRange
+    }
+
     // MARK: - State Management
 
     /// Represents the different states of the camera UI.
@@ -324,24 +342,6 @@ public class CameraModel {
     /// Ends the current pinch zoom interaction.
     func endPinchZoom() {
         pinchStartZoom = nil
-    }
-
-    /// Whether the currently selected device is the ultra-wide camera,
-    /// which uses a 0.5× equivalent scale instead of 1×.
-    var usesUltraWideEquivalentScale: Bool {
-        selectedDevice?.deviceType == .builtInUltraWideCamera
-    }
-
-    /// The zoom factor expressed in user-facing equivalent scale (0.5× for ultra-wide, 1× base otherwise).
-    var displayZoom: Double {
-        usesUltraWideEquivalentScale ? zoom / 2.0 : zoom
-    }
-
-    /// The zoom range expressed in user-facing equivalent scale.
-    var displayZoomRange: ClosedRange<Double> {
-        usesUltraWideEquivalentScale
-            ? (zoomRange.lowerBound / 2.0)...(zoomRange.upperBound / 2.0)
-            : zoomRange
     }
     
     // MARK: - Private Methods
