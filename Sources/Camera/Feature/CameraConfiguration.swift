@@ -166,7 +166,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
     /// Refreshes the list of available capture devices based on the current position.
     /// The resulting list is explicitly sorted according to the priority order defined in `CaptureDeviceType`.
     private mutating func refreshAvailableDevices() {
-        let cameras = CaptureDeviceType.allCases.map { $0.deviceType }
+        let cameras = CaptureDeviceType.allCases.map { $0.avDeviceType }
         
         let discoverySession = AVCaptureDevice.DiscoverySession(
             deviceTypes: cameras, mediaType: .video, position: position)
@@ -207,11 +207,14 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
             photoSettings = AVCapturePhotoSettings(format: [
                 AVVideoCodecKey: videoCodecType.avVideoCodecType
             ])
-        } else {
+        } else if let fallbackCodec = photoOutput.availablePhotoCodecTypes.first {
             // Fallback to the first available codec if the preferred one is not available.
             photoSettings = AVCapturePhotoSettings(format: [
-                AVVideoCodecKey: photoOutput.availablePhotoCodecTypes.first
+                AVVideoCodecKey: fallbackCodec
             ])
+        } else {
+            // No codec available at all — use default settings.
+            photoSettings = AVCapturePhotoSettings()
         }
 
         photoSettings.flashMode = flashMode.avFlashMode

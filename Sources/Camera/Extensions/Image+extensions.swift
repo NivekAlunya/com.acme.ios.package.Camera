@@ -1,6 +1,5 @@
 import SwiftUI
 import AVFoundation
-import Camera
 
 extension Image.Orientation {
     /// Initializes an `Image.Orientation` from a `CGImagePropertyOrientation`.

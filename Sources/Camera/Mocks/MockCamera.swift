@@ -117,6 +117,6 @@ actor MockCamera: CameraProtocol {
     }
 
     func end() async {
-        // No-op for mock
+        await stream.finish()
     }
 }

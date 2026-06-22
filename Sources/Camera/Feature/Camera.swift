@@ -69,9 +69,8 @@ public actor Camera: NSObject {
     /// Changes the active camera device.
     /// - Parameter device: The `AVCaptureDevice` to switch to.
     private func changeDevice(device: AVCaptureDevice) async throws {
-        try await pause()
+        await pause()
         removeDevice()
-        try setup(device: device)
         try await start()
     }
 
@@ -204,9 +203,9 @@ extension Camera: CameraProtocol {
                     throw CameraError.cameraUnavailable
                 }
                 try setup(device: device)
-                await createStreams()
+                createStreams()
             case .ended:
-                await createStreams()
+                createStreams()
             default:
                 break
             }

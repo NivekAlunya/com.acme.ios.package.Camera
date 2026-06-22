@@ -20,13 +20,11 @@ public enum CaptureDeviceType: CaseIterable {
     case builtInTelephotoCamera
     case builtInLiDARDepthCamera
     case builtInTrueDepthCamera
-    case builtInMicrophone
+    case microphone
     case continuityCamera
     case external
-    case microphone
 #if os(macOS)
     case deskViewCamera
-    case externalUnknown
 #endif
     
     /// The string representation of the device type.
@@ -35,7 +33,6 @@ public enum CaptureDeviceType: CaseIterable {
         case .builtInDualCamera: "builtInDualCamera"
         case .builtInDualWideCamera: "builtInDualWideCamera"
         case .builtInLiDARDepthCamera: "builtInLiDARDepthCamera"
-        case .builtInMicrophone: "builtInMicrophone"
         case .builtInTelephotoCamera: "builtInTelephotoCamera"
         case .builtInTripleCamera: "builtInTripleCamera"
         case .builtInTrueDepthCamera: "builtInTrueDepthCamera"
@@ -46,18 +43,16 @@ public enum CaptureDeviceType: CaseIterable {
         case .microphone: "microphone"
 #if os(macOS)
         case .deskViewCamera: "deskViewCamera"
-        case .externalUnknown: "externalUnknown"
 #endif
         }
     }
     
     /// The corresponding `AVCaptureDevice.DeviceType`.
-    var deviceType: AVCaptureDevice.DeviceType {
+    var avDeviceType: AVCaptureDevice.DeviceType {
         switch self {
         case .builtInDualCamera: .builtInDualCamera
         case .builtInDualWideCamera: .builtInDualWideCamera
         case .builtInLiDARDepthCamera: .builtInLiDARDepthCamera
-        case .builtInMicrophone: .builtInMicrophone
         case .builtInTelephotoCamera: .builtInTelephotoCamera
         case .builtInTripleCamera: .builtInTripleCamera
         case .builtInTrueDepthCamera: .builtInTrueDepthCamera
@@ -68,7 +63,6 @@ public enum CaptureDeviceType: CaseIterable {
         case .microphone: .microphone
 #if os(macOS)
         case .deskViewCamera: .deskViewCamera
-        case .externalUnknown: .externalUnknown
 #endif
         }
     }

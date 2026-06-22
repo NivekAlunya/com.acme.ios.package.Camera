@@ -68,10 +68,7 @@ public struct CameraView: View {
     }
     
     private var overlayZoomValue: Double {
-        if model.selectedDevice?.deviceType == .builtInUltraWideCamera {
-            return model.zoom / 2.0
-        }
-        return model.zoom
+        model.displayZoom
     }
 
     private func presentZoomOverlay() {
@@ -109,6 +106,27 @@ public struct CameraView: View {
                         .compositingGroup()
                     }
                 }
+                .onTapGesture(count: 1) { location in
+                    // Normalise tap coordinates from view-space pixels to [0,1] unit space,
+                    // which is what AVFoundation's pointOfInterest expects.
+                    let frameSize = reader.size
+                    guard frameSize.width > 0, frameSize.height > 0 else { return }
+                    let normalised = CGPoint(
+                        x: location.x / frameSize.width,
+                        y: location.y / frameSize.height
+                    )
+                    model.selectFocusPoint(normalised)
+                }
+                // Pinch updates zoom relatively from the zoom at gesture start.
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            model.selectZoom(pinchScale: value)
+                        }
+                        .onEnded { _ in
+                            model.endPinchZoom()
+                        }
+                )
             }
             .background(Color(UIColor.systemBackground))
         }
@@ -125,19 +143,6 @@ public struct CameraView: View {
                 EmptyView()
             }
         }
-        .onTapGesture(count: 1) { location in
-            model.selectFocusPoint(location)
-        }
-        // Pinch updates zoom relatively from the zoom at gesture start.
-        .gesture(
-            MagnificationGesture()
-                .onChanged { value in
-                    model.selectZoom(pinchScale: value)
-                }
-                .onEnded { _ in
-                    model.endPinchZoom()
-                }
-        )
         .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
@@ -160,12 +165,16 @@ public struct CameraView: View {
             }
         }
         .task {
+            #if DEBUG
             print("CameraView appeared for the first time, starting camera...")
+            #endif
             await model.start()
         }
         .onDisappear {
             zoomOverlayTask?.cancel()
+            #if DEBUG
             print("CameraView disappeared, stopping camera...")
+            #endif
             Task {
                 await model.stop()
             }
@@ -465,37 +474,20 @@ extension CameraView {
         @Environment(\.bundle) var bundle
         let model: CameraModel
 
-        private var usesUltraWideEquivalentScale: Bool {
-            model.selectedDevice?.deviceType == .builtInUltraWideCamera
-        }
-
-        private var displayZoomRange: ClosedRange<Double> {
-            if usesUltraWideEquivalentScale {
-                return (model.zoomRange.lowerBound / 2.0)...(model.zoomRange.upperBound / 2.0)
-            }
-            return model.zoomRange
-        }
-
-        private var displayZoom: Double {
-            if usesUltraWideEquivalentScale {
-                return model.zoom / 2.0
-            }
-            return model.zoom
-        }
-
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_camera", bundle: bundle)).bold()) {
                     VStack {
                         Slider(value: Binding(
-                            get: { displayZoom },
+                            get: { model.displayZoom },
                             set: { value in
-                                let hardwareZoom = usesUltraWideEquivalentScale ? value * 2.0 : value
+                                // Convert display-space value back to hardware zoom.
+                                let hardwareZoom = model.usesUltraWideEquivalentScale ? value * 2.0 : value
                                 model.selectZoom(hardwareZoom)
                             }),
-                               in: displayZoomRange,
+                               in: model.displayZoomRange,
                                step: 0.5)
-                        Text("zoom \(displayZoom, specifier: "%.1f")x")
+                        Text("zoom \(model.displayZoom, specifier: "%.1f")x")
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
                     }.listRowSeparator(.hidden)
