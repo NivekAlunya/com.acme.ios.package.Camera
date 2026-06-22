@@ -8,6 +8,9 @@
 @preconcurrency import AVFoundation
 import Foundation
 import UIKit
+import os
+
+private let logger = Logger(subsystem: "com.acme.ios.package.Camera", category: "Camera")
 
 /// Represents the possible states of the `Camera` actor.
 private enum CameraState {
@@ -336,7 +339,7 @@ extension Camera: AVCapturePhotoCaptureDelegate {
         error: Error?
     ) {
         if let error {
-            print("Error capturing photo: \(error.localizedDescription)")
+            logger.error("Error capturing photo: \(error.localizedDescription)")
             return
         }
         Task {

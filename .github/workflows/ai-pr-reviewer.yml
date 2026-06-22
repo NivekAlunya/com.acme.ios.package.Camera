@@ -37,8 +37,18 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          # Use character limit as a safe basic truncation
-          DIFF=$(cat pr_diff.txt | head -c 16000) 
+          MAX_CHARS=16000
+          RAW_DIFF=$(cat pr_diff.txt)
+          DIFF_LEN=${#RAW_DIFF}
+
+          DIFF=$(echo "$RAW_DIFF" | head -c $MAX_CHARS)
+
+          TRUNCATED_WARNING=""
+          if [ $DIFF_LEN -gt $MAX_CHARS ]; then
+            TRUNCATED_WARNING="> [!WARNING]\n> The diff was truncated to $MAX_CHARS characters for the review. Some changes might not have been analyzed.\n\n"
+          fi
+
+          DISCLAIMER="> [!NOTE]\n> This is an AI-generated review. Please verify all suggestions before merging.\n\n"
 
           PAYLOAD=$(jq -n \
             --arg diff "$DIFF" \
@@ -56,13 +66,12 @@ jobs:
               ]
             }')
 
-          set +x # Ensure API key isn't logged 
+          set +x
           RESPONSE=$(curl -s --retry 3 -X POST https://api.mistral.ai/v1/chat/completions \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $MISTRAL_API_KEY" \
             -d "$PAYLOAD")
-          
-          # Validate response
+
           if echo "$RESPONSE" | jq -e '.error' > /dev/null; then
             ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error.message')
             REVIEW="❌ Mistral API Error: $ERROR_MSG"
@@ -70,10 +79,14 @@ jobs:
             REVIEW=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // "Error: no response from Mistral"')
           fi
 
-          COMMENT=$(jq -n --arg body "## 🤖 AI Code Review\n\n$REVIEW" '{body: $body}')
+          FULL_BODY="$DISCLAIMER$TRUNCATED_WARNING$REVIEW"
+
+          # Create a Review using the Review API
+          jq -n --arg body "$FULL_BODY" '{body: $body, event: "COMMENT"}' > review_payload.json
 
           curl -s --retry 3 -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments \
-            -d "$COMMENT"
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/$REPO/pulls/$PR_NUMBER/reviews \
+            -d @review_payload.json

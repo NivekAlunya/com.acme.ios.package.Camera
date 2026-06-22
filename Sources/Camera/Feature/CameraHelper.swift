@@ -9,12 +9,12 @@ import AVFoundation
 import UIKit
 
 /// A utility class providing helper methods for camera-related tasks.
-public class CameraHelper {
+class CameraHelper {
 
     /// Checks the current authorization status for video capture.
     /// If the status is not determined, it requests access from the user.
     /// - Returns: A boolean indicating whether the app is authorized to use the camera.
-    public static func checkAuthorization() async -> Bool {
+    static func checkAuthorization() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
             return true
