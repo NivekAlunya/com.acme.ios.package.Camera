@@ -1,33 +1,29 @@
 name: AI PR Reviewer
+
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
   issue_comment:
-    types: [created]
 
 permissions:
-  contents: read
-  pull-requests: write
   issues: write
+  pull-requests: write
+  contents: write
 
 jobs:
   review:
     runs-on: ubuntu-latest
-    if: >
-      (github.event_name == 'pull_request') ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null)
+    if: ${{ github.event.sender.type != 'Bot' }} # prevent infinite bot loops
     steps:
-      - uses: actions/checkout@v4
-
-      - name: AI PR Review
-        uses: Codium-ai/pr-agent@main
+      - name: PR Agent
+        uses: the-pr-agent/pr-agent@main
         env:
-          OPENAI.KEY: ${{ secrets.MISTRAL_API_KEY }}
-          OPENAI.API_BASE: "https://api.mistral.ai/v1"
-          OPENAI.API_TYPE: "openai"
-          CONFIG.MODEL: "mistral-large-latest"
-          CONFIG.MODEL_WEAK: "mistral-small-latest"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENAI.API_BASE: "https://api.mistral.ai/v1"
+          CONFIG.MODEL: "openai/mistral-large-latest" # "openai/" prefix required for custom endpoints
+          CONFIG.MODEL_WEAK: "openai/mistral-small-latest"
+          CONFIG.FALLBACK_MODELS: '["openai/mistral-large-latest"]'
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "true"
