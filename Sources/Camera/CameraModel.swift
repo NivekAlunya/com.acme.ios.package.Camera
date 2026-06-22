@@ -19,6 +19,24 @@ public class CameraModel {
     /// A type alias for the data captured when a photo is taken.
     typealias Capture = (photo: PhotoCapture?, config: CameraConfiguration?)
 
+    /// Whether the currently selected device is the ultra-wide camera,
+    /// which uses a 0.5× equivalent scale instead of 1×.
+    var usesUltraWideEquivalentScale: Bool {
+        selectedDevice?.deviceType == .builtInUltraWideCamera
+    }
+
+    /// The zoom factor expressed in user-facing equivalent scale (0.5× for ultra-wide, 1× base otherwise).
+    var displayZoom: Double {
+        usesUltraWideEquivalentScale ? zoom / 2.0 : zoom
+    }
+
+    /// The zoom range expressed in user-facing equivalent scale.
+    var displayZoomRange: ClosedRange<Double> {
+        usesUltraWideEquivalentScale
+            ? (zoomRange.lowerBound / 2.0)...(zoomRange.upperBound / 2.0)
+            : zoomRange
+    }
+
     // MARK: - State Management
 
     /// Represents the different states of the camera UI.
@@ -63,6 +81,10 @@ public class CameraModel {
     var error: CameraError?
     /// The current camera preview image.
     var preview: Image?
+    /// The current preview mode.
+    var previewMode: CameraPreviewMode = .streaming
+    /// The underlying `AVCaptureSession`.
+    var session: AVCaptureSession?
     /// The captured photo and its configuration.
     var capture: Capture?
     /// The current camera position (front or back).
@@ -99,6 +121,9 @@ public class CameraModel {
     private var previewTask: Task<Void, Never>?
     /// The task that listens for captured photos from the camera.
     private var photoTask: Task<Void, Never>?
+    /// The task for the most recent in-flight settings selection (preset, device, format, flash, zoom).
+    /// Cancelled before starting a new one to avoid out-of-order execution.
+    private var selectionTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -115,16 +140,20 @@ public class CameraModel {
     func start() async {
         state = .loading
         do {
-            self.ratio = await camera.config.ratio
-            
-            try await camera.start()
-            
-            previewTask = Task { await listenCameraPreviews() }
-            photoTask = Task { await listenPhotoCapture() }
-            
-            await loadSettings()
-        } catch (let error as CameraError) {
+            let initialConfig = await camera.config
+            self.ratio = initialConfig.ratio
+            self.previewMode = initialConfig.previewMode
+            self.session = await camera.session
 
+            // Start the camera first — if it throws (e.g. unauthorized) we must not
+            // have already launched tasks that wait on streams which will never finish.
+            try await camera.start()
+
+            // Camera is running: now it's safe to launch the stream listeners.
+            selectPreviewMode(self.previewMode)
+            photoTask = Task { await listenPhotoCapture() }
+            await loadSettings()
+        } catch let error as CameraError {
             if error == .cameraUnauthorized {
                 state = .unauthorized
             }
@@ -158,7 +187,6 @@ public class CameraModel {
         await camera.takePhoto()
     }
 
-
     func handleSwitchRatio() async {
         let newRatio: CaptureSessionAspectRatio
         switch ratio {
@@ -186,9 +214,9 @@ public class CameraModel {
     func handleSwitchPosition() async {
         do {
             try await camera.changePosition()
+            // loadSettings() reads position from a single config snapshot — no extra hop needed.
             await loadSettings()
-            self.position = await camera.config.position
-        } catch (let error as CameraError) {
+        } catch let error as CameraError {
             self.error = error
         } catch {
             // Handle other potential errors
@@ -209,22 +237,48 @@ public class CameraModel {
     
     // MARK: - Settings Selection
 
-    /// Selects a new session preset.
-    func selectPreset(_ preset: CaptureSessionPreset) {
+    /// Selects a new preview mode.
+    func selectPreviewMode(_ previewMode: CameraPreviewMode) {
+        #if DEBUG
+        print("CameraModel: Selecting preview mode \(previewMode)")
+        #endif
+        self.previewMode = previewMode
+        previewTask?.cancel()
+
+        if previewMode == .streaming {
+            previewTask = Task {
+                await camera.stream.resume()
+                await listenCameraPreviews()
+            }
+        }
+
+        state = .previewing
+
         Task {
+            await camera.changePreviewMode(previewMode)
+        }
+    }
+
+    /// Selects a new session preset.
+    /// Cancels any in-flight selection task before dispatching the new one.
+    func selectPreset(_ preset: CaptureSessionPreset) {
+        selectionTask?.cancel()
+        selectionTask = Task {
             selectedPreset = preset
             await camera.changePreset(preset: preset)
         }
     }
 
     /// Selects a new camera device.
+    /// Cancels any in-flight selection task before dispatching the new one.
     func selectDevice(_ device: AVCaptureDevice) {
-        Task {
+        selectionTask?.cancel()
+        selectionTask = Task {
             selectedDevice = device
             do {
                 try await camera.changeCamera(device: device)
                 await loadSettings()
-            } catch (let error as CameraError) {
+            } catch let error as CameraError {
                 self.error = error
             } catch {
                 // Handle other potential errors
@@ -233,28 +287,36 @@ public class CameraModel {
     }
 
     /// Selects a new video format.
+    /// Cancels any in-flight selection task before dispatching the new one.
     func selectFormat(_ format: VideoCodecType) {
-        Task {
+        selectionTask?.cancel()
+        selectionTask = Task {
             selectedFormat = format
             await camera.changeCodec(format)
         }
     }
 
     /// Selects a new flash mode.
+    /// Cancels any in-flight selection task before dispatching the new one.
     func selectFlashMode(_ flashMode: CameraFlashMode) {
-        Task {
+        selectionTask?.cancel()
+        selectionTask = Task {
             await camera.changeFlashMode(flashMode)
+            // Read back from a single config snapshot, not a second actor hop.
             selectedFlashMode = await camera.config.flashMode
         }
     }
 
     /// Selects a new zoom factor.
+    /// Cancels any in-flight selection task before dispatching the new one.
     func selectZoom(_ zoom: Double) {
-        Task {
+        selectionTask?.cancel()
+        selectionTask = Task {
             do {
                 try await camera.changeZoom(zoom)
-                self.zoom = await Double(camera.config.zoom)
-            } catch (let error as CameraError) {
+                // Read back the clamped value actually applied by the actor.
+                self.zoom = Double(await camera.config.zoom)
+            } catch let error as CameraError {
                 self.error = error
             } catch {
                 // Handle other potential errors
@@ -286,23 +348,27 @@ public class CameraModel {
 
     /// Loads the initial camera settings and updates the published properties.
     private func loadSettings() async {
-        if let currentDevice = await camera.config.deviceInput?.device {
+        // Grab the entire configuration in one actor hop to avoid reading
+        // from a mixed state when concurrent camera changes are in flight.
+        let config = await camera.config
+
+        if let currentDevice = config.deviceInput?.device {
             selectedDevice = currentDevice
         } else if let firstDevice = devices.first {
             selectedDevice = firstDevice
         }
-        self.position = await camera.config.position
-        
-        devices = await camera.config.listCaptureDevice
-        formats = await camera.config.listSupportedFormat
-        flashModes = await camera.config.listFlashMode
-        presets = await camera.config.listPreset
-        
-        selectedFlashMode = await camera.config.flashMode
-        selectedPreset = await camera.config.preset
-        selectedFormat = await camera.config.videoCodecType
-        zoom = await Double(camera.config.zoom)
-        zoomRange = await camera.config.zoomRange
+        self.position = config.position
+
+        devices = config.listCaptureDevice
+        formats = config.listSupportedFormat
+        flashModes = config.listFlashMode
+        presets = config.listPreset
+
+        selectedFlashMode = config.flashMode
+        selectedPreset = config.preset
+        selectedFormat = config.videoCodecType
+        zoom = Double(config.zoom)
+        zoomRange = config.zoomRange
     }
     
     /// Listens for preview frames from the camera stream and updates the `preview` property.
@@ -344,6 +410,7 @@ public class CameraModel {
     
     /// Cleans up resources and ends the camera session.
     private func exit() async {
+        selectionTask?.cancel()
         previewTask?.cancel()
         photoTask?.cancel()
         capture = nil

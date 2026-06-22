@@ -11,7 +11,7 @@ import CoreGraphics
  
 /// A shared `CIContext` for performance. Creating a `CIContext` is expensive,
 /// so it should be initialized once and reused.
-private let sharedCIContext = CIContext()
+internal let sharedCIContext = CIContext()
 
 extension CIImage {
     /// Asynchronously converts a `CIImage` to a `CGImage`.
@@ -26,6 +26,14 @@ extension CIImage {
                 return nil
             }
             return cgImage
+        }.value
+    }
+
+    /// Asynchronously converts a `CIImage` to JPEG data.
+    public func toJPEGData() async -> Data? {
+        return await Task.detached {
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            return sharedCIContext.jpegRepresentation(of: self, colorSpace: colorSpace, options: [:])
         }.value
     }
 }

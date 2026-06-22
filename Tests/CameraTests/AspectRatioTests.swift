@@ -10,19 +10,19 @@ struct AspectRatioTests {
     func testTargetSize43() {
         let ratio = CaptureSessionAspectRatio.ratio_4_3
         
-        // Portrait input (e.g., 3000x4000)
+        // Portrait input matching exact 3:4 ratio (3000x4000) — no crop needed.
         let portraitInput = CGSize(width: 3000, height: 4000)
         let portraitTarget = ratio.targetSize(for: portraitInput)
         #expect(portraitTarget?.width == 3000)
         #expect(portraitTarget?.height == 4000)
         
-        // Wider portrait input (e.g., 3500x4000) -> should crop width
+        // Wider portrait input (3500x4000): the image is wider than 3:4.
+        // Policy: cannot fill 3:4 without side-cropping → return nil (keep full image).
         let widerPortraitInput = CGSize(width: 3500, height: 4000)
         let widerPortraitTarget = ratio.targetSize(for: widerPortraitInput)
-        #expect(widerPortraitTarget?.width == 3000)
-        #expect(widerPortraitTarget?.height == 4000)
+        #expect(widerPortraitTarget == nil, "Should return nil when side-cropping would be required")
         
-        // Taller portrait input (e.g., 3000x4500) -> should crop height
+        // Taller portrait input (3000x4500): image is narrower than 3:4, crop height only.
         let tallerPortraitInput = CGSize(width: 3000, height: 4500)
         let tallerPortraitTarget = ratio.targetSize(for: tallerPortraitInput)
         #expect(tallerPortraitTarget?.width == 3000)

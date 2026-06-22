@@ -14,7 +14,7 @@ public class CameraHelper {
     /// Checks the current authorization status for video capture.
     /// If the status is not determined, it requests access from the user.
     /// - Returns: A boolean indicating whether the app is authorized to use the camera.
-    static func checkAuthorization() async -> Bool {
+    public static func checkAuthorization() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
             return true
@@ -32,7 +32,7 @@ public class CameraHelper {
     /// Note that the mappings might seem counter-intuitive due to the different coordinate systems.
     /// - Parameter deviceOrientation: The orientation of the device.
     /// - Returns: The corresponding video orientation, or `nil` if there's no direct mapping.
-    static func videoOrientationFor(_ deviceOrientation: UIDeviceOrientation) -> AVCaptureVideoOrientation? {
+    public static func videoOrientationFor(_ deviceOrientation: UIDeviceOrientation) -> AVCaptureVideoOrientation? {
         switch deviceOrientation {
         case .portrait:
             return .portrait
@@ -51,7 +51,7 @@ public class CameraHelper {
     /// This is useful for setting the orientation based on sensor data.
     /// - Parameter deviceOrientation: The rotation angle of the device.
     /// - Returns: The corresponding video orientation, or `nil` if the angle is not standard.
-    static func videoOrientationFor(deviceOrientation: CGFloat) -> AVCaptureVideoOrientation? {
+    public static func videoOrientationFor(deviceOrientation: CGFloat) -> AVCaptureVideoOrientation? {
         switch deviceOrientation {
         case 90.0:
             return .portrait
@@ -72,7 +72,12 @@ public class CameraHelper {
     ///   - string: The key for the localized string.
     ///   - bundle: The bundle where the `Camera.xcstrings` file is located.
     /// - Returns: A `LocalizedStringResource` ready to be used in SwiftUI views.
-    static func stringFrom(_ string: String, bundle: Bundle) -> LocalizedStringResource {
-        return LocalizedStringResource(String.LocalizationValue(string), table: "Camera", bundle: .atURL(bundle.bundleURL))
+    public static func stringFrom(_ string: String, bundle: Bundle) -> String {
+        let requestedStr = String(localized: String.LocalizationValue(string), table: "Camera", bundle: bundle)
+        if requestedStr == string && bundle != .module {
+            return String(localized: String.LocalizationValue(string), table: "Camera", bundle: .module)
+        }
+        return requestedStr
     }
+    
 }

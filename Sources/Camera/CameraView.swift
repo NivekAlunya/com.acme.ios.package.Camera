@@ -16,7 +16,6 @@ extension EnvironmentValues {
 /// The main SwiftUI view for the camera interface.
 /// It provides a full-screen camera preview, controls for taking photos, and a settings sheet.
 public struct CameraView: View {
-    
     /// A closure that is called when the user finishes the capture flow.
     /// - Parameters:
     ///   - photo: The captured `Photo`, or `nil` if the user cancels.
@@ -69,10 +68,7 @@ public struct CameraView: View {
     }
     
     private var overlayZoomValue: Double {
-        if model.selectedDevice?.deviceType == .builtInUltraWideCamera {
-            return model.zoom / 2.0
-        }
-        return model.zoom
+        model.displayZoom
     }
 
     private func presentZoomOverlay() {
@@ -89,19 +85,48 @@ public struct CameraView: View {
     public var body: some View {
         GeometryReader { reader in
             ZStack {
-                ImagePreview(image: model.preview)
-                    .overlay(alignment: .center) {
-                        if reader.size.width > 0 && reader.size.height > 0,
-                           let targetSize = model.ratio.targetSize(for: reader.size) {
-                            ZStack {
-                                Color.black.opacity(0.8)
-                                Rectangle()
-                                    .blendMode(.destinationOut)
-                                    .frame(width: targetSize.width, height: targetSize.height)
-                            }
-                            .compositingGroup()
-                        }
+                Group {
+                    if model.state == .validating {
+                        ImagePreview(image: model.preview)
+                    } else if model.previewMode == .native, let session = model.session {
+                        NativePreviewView(session: session)
+                    } else {
+                        ImagePreview(image: model.preview)
                     }
+                }
+                .overlay(alignment: .center) {
+                    if reader.size.width > 0 && reader.size.height > 0,
+                       let targetSize = model.ratio.targetSize(for: reader.size) {
+                        ZStack {
+                            Color.black.opacity(0.8)
+                            Rectangle()
+                                .blendMode(.destinationOut)
+                                .frame(width: targetSize.width, height: targetSize.height)
+                        }
+                        .compositingGroup()
+                    }
+                }
+                .onTapGesture(count: 1) { location in
+                    // Normalise tap coordinates from view-space pixels to [0,1] unit space,
+                    // which is what AVFoundation's pointOfInterest expects.
+                    let frameSize = reader.size
+                    guard frameSize.width > 0, frameSize.height > 0 else { return }
+                    let normalised = CGPoint(
+                        x: location.x / frameSize.width,
+                        y: location.y / frameSize.height
+                    )
+                    model.selectFocusPoint(normalised)
+                }
+                // Pinch updates zoom relatively from the zoom at gesture start.
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            model.selectZoom(pinchScale: value)
+                        }
+                        .onEnded { _ in
+                            model.endPinchZoom()
+                        }
+                )
             }
             .background(Color(UIColor.systemBackground))
         }
@@ -118,19 +143,6 @@ public struct CameraView: View {
                 EmptyView()
             }
         }
-        .onTapGesture(count: 1) { location in
-            model.selectFocusPoint(location)
-        }
-        // Pinch updates zoom relatively from the zoom at gesture start.
-        .gesture(
-            MagnificationGesture()
-                .onChanged { value in
-                    model.selectZoom(pinchScale: value)
-                }
-                .onEnded { _ in
-                    model.endPinchZoom()
-                }
-        )
         .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
@@ -153,12 +165,16 @@ public struct CameraView: View {
             }
         }
         .task {
+            #if DEBUG
             print("CameraView appeared for the first time, starting camera...")
+            #endif
             await model.start()
         }
         .onDisappear {
             zoomOverlayTask?.cancel()
+            #if DEBUG
             print("CameraView disappeared, stopping camera...")
+            #endif
             Task {
                 await model.stop()
             }
@@ -210,49 +226,48 @@ extension CameraView {
         var onCancel: (() -> Void)
 
         var body: some View {
-            GlassEffectContainer {
-                HStack(spacing: 16) {
-                    Group {
-                        switch model.state {
-                        case .previewing:
-                            CancelButton(onCancel: onCancel)
-                            SettingsButton(isSettingShown: $isSettingShown)
-                            SwitchRatioButton(ratio: model.ratio) {
-                                Task { await model.handleSwitchRatio() }
+            VStack {
+                GlassEffectContainer {
+                    HStack {
+                        Group {
+                            switch model.state {
+                            case .previewing:
+                                CancelButton(onCancel: onCancel)
+                                SettingsButton(isSettingShown: $isSettingShown)
+                                SwitchRatioButton(ratio: model.ratio) {
+                                    Task { await model.handleSwitchRatio() }
+                                }
+                                SwitchPositionButton {
+                                    Task { await model.handleSwitchPosition() }
+                                }
+                            case .processing, .loading, .accepted:
+                                EmptyView()
+                            case .validating:
+                                RejectButton {
+                                    Task { await model.handleRejectPhoto() }
+                                }
+                                Spacer().frame(width: 20)
+                                AcceptButton {
+                                    Task { await model.handleAcceptPhoto() }
+                                }
+                            case .unauthorized:
+                                OpenSettingsButton()
+                                CancelButton(onCancel: onCancel)
                             }
-                            SwitchPositionButton {
-                                Task { await model.handleSwitchPosition() }
-                            }
-                            TakePhotoButton {
-                                Task { await model.handleTakePhoto() }
-                            }
-
-                        case .processing, .loading, .accepted:
-                            EmptyView()
-                        case .validating:
-                            RejectButton {
-                                Task { await model.handleRejectPhoto() }
-                            }
-                            .frame(maxWidth: .infinity)
-                            AcceptButton {
-                                Task { await model.handleAcceptPhoto() }
-                            }
-                            .frame(maxWidth: .infinity)
-                        case .unauthorized:
-
-                            OpenSettingsButton()
-                                .frame(maxWidth: .infinity)
-                            CancelButton(onCancel: onCancel)
-                                .frame(maxWidth: .infinity)
                         }
+                        .buttonStyle(.plain)
+                        .padding()
+                        .font(.title.bold())
+                        .glassEffect(.clear)
+                        .glassEffectUnion(id: 1, namespace: namespace)
                     }
-                    .buttonStyle(.plain)
-                    .padding()
-                    .font(.title.bold())
-                    .glassEffect(.clear)
-                    .glassEffectUnion(id: 1, namespace: namespace)
                 }
-                .padding()
+                if model.state == .previewing {
+                    Spacer().frame(height: 20)
+                    TakePhotoButton {
+                        Task { await model.handleTakePhoto() }
+                    }
+                }
             }
         }
     }
@@ -333,7 +348,15 @@ extension CameraView {
         var action: () -> Void
         var body: some View {
             Button(action: action) {
-                Image(systemName: "circle.circle.fill")
+                Circle()
+                    .strokeBorder(Color.white, lineWidth: 4)
+                    .frame(width: 70, height: 70)
+                    .overlay(
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 60, height: 60)
+                    )
+//                Image(systemName: "circle.circle.fill")
             }
             .accessibilityLabel(CameraHelper.stringFrom("accessibility_take_photo", bundle: bundle))
         }
@@ -451,37 +474,20 @@ extension CameraView {
         @Environment(\.bundle) var bundle
         let model: CameraModel
 
-        private var usesUltraWideEquivalentScale: Bool {
-            model.selectedDevice?.deviceType == .builtInUltraWideCamera
-        }
-
-        private var displayZoomRange: ClosedRange<Double> {
-            if usesUltraWideEquivalentScale {
-                return (model.zoomRange.lowerBound / 2.0)...(model.zoomRange.upperBound / 2.0)
-            }
-            return model.zoomRange
-        }
-
-        private var displayZoom: Double {
-            if usesUltraWideEquivalentScale {
-                return model.zoom / 2.0
-            }
-            return model.zoom
-        }
-
         var body: some View {
             List {
                 Section(header: Text(CameraHelper.stringFrom("option_title_camera", bundle: bundle)).bold()) {
                     VStack {
                         Slider(value: Binding(
-                            get: { displayZoom },
+                            get: { model.displayZoom },
                             set: { value in
-                                let hardwareZoom = usesUltraWideEquivalentScale ? value * 2.0 : value
+                                // Convert display-space value back to hardware zoom.
+                                let hardwareZoom = model.usesUltraWideEquivalentScale ? value * 2.0 : value
                                 model.selectZoom(hardwareZoom)
                             }),
-                               in: displayZoomRange,
+                               in: model.displayZoomRange,
                                step: 0.5)
-                        Text("zoom \(displayZoom, specifier: "%.1f")x")
+                        Text("zoom \(model.displayZoom, specifier: "%.1f")x")
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
                     }.listRowSeparator(.hidden)

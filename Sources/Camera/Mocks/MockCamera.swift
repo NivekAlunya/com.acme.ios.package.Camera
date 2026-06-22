@@ -12,6 +12,12 @@ import Foundation
 /// A mock implementation of the `CameraProtocol` for testing and SwiftUI previews.
 /// This actor simulates the behavior of the real camera, allowing for UI development and testing without a physical device.
 actor MockCamera: CameraProtocol {
+    let session: AVCaptureSession = AVCaptureSession()
+     
+    func changePreviewMode(_ mode: CameraPreviewMode) async {
+        
+    }
+    
     func focus(on: CGPoint) async throws {
         // No-op for mock
     }
@@ -19,8 +25,6 @@ actor MockCamera: CameraProtocol {
     func changeRatio(_ ratio: CaptureSessionAspectRatio) async {
         config.ratio = ratio
     }
-
-    
 
     /// An array of `CIImage`s to be used for the preview stream.
     var previewImages: [CIImage]
@@ -113,6 +117,6 @@ actor MockCamera: CameraProtocol {
     }
 
     func end() async {
-        // No-op for mock
+        await stream.finish()
     }
 }
