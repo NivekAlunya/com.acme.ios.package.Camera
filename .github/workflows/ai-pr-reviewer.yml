@@ -21,16 +21,24 @@ jobs:
         id: diff
         run: |
           git diff origin/${{ github.base_ref }}...HEAD > pr_diff.txt
-          echo "Diff size: $(wc -l < pr_diff.txt) lines"
+          if [ ! -s pr_diff.txt ]; then
+            echo "No changes found. Skipping review."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Diff size: $(wc -l < pr_diff.txt) lines"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Review with Mistral
+        if: steps.diff.outputs.skip == 'false'
         env:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          DIFF=$(cat pr_diff.txt | head -c 15000)  # limit to ~15k chars
+          # Use character limit as a safe basic truncation
+          DIFF=$(cat pr_diff.txt | head -c 16000) 
 
           PAYLOAD=$(jq -n \
             --arg diff "$DIFF" \
@@ -48,16 +56,23 @@ jobs:
               ]
             }')
 
-          RESPONSE=$(curl -s -X POST https://api.mistral.ai/v1/chat/completions \
+          set +x # Ensure API key isn't logged 
+          RESPONSE=$(curl -s --retry 3 -X POST https://api.mistral.ai/v1/chat/completions \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $MISTRAL_API_KEY" \
             -d "$PAYLOAD")
-
-          REVIEW=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // "Error: no response from Mistral"')
+          
+          # Validate response
+          if echo "$RESPONSE" | jq -e '.error' > /dev/null; then
+            ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error.message')
+            REVIEW="❌ Mistral API Error: $ERROR_MSG"
+          else
+            REVIEW=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // "Error: no response from Mistral"')
+          fi
 
           COMMENT=$(jq -n --arg body "## 🤖 AI Code Review\n\n$REVIEW" '{body: $body}')
 
-          curl -s -X POST \
+          curl -s --retry 3 -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
             https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments \

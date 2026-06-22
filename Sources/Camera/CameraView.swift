@@ -530,7 +530,7 @@ extension CameraView {
         var body: some View {
             List {
                 Section(header: Text("option_title_flash_mode".cameraLocalized(bundle: bundle)).bold()) {
-                    ForEach(CameraFlashMode.allCases, id: \.self) { flashMode in
+                    ForEach(model.flashModes, id: \.self) { flashMode in
                         ListRow(text: Text(flashMode.stringKey.cameraLocalized(bundle: bundle)),
                                 selected: flashMode == model.selectedFlashMode) {
                             model.selectFlashMode(flashMode)
