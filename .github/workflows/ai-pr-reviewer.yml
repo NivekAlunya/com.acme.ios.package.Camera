@@ -1,0 +1,27 @@
+name: AI PR Reviewer
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: coderabbit-ai/ai-pr-reviewer@v1.0.0
+        with:
+          openai_base_url: "https://api.mistral.ai/v1"  # Mistral API endpoint
+          openai_light_model: "mistral-tiny-latest"      # Light model for quick checks
+          openai_heavy_model: "mistral-large-latest"    # Heavy model for detailed reviews
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          openai_api_key: ${{ secrets.MISTRAL_API_KEY }} # Your Mistral API key
+          system_message: |
+            You are an AI code reviewer. Analyze the changes, suggest improvements, and ensure best practices.
+          exclude_files: "*.md,*.txt"  # Optional: Exclude non-code files
