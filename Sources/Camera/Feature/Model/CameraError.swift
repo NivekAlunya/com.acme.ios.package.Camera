@@ -23,6 +23,8 @@ public enum CameraError: Error {
     case cannotStartCamera
     /// Failed to focus the camera on the specified point.
     case focusFailed
+    /// Failed to capture a photo from the hardware pipeline.
+    case captureFailed
     /// A computed property that returns a localization key for each error case.
     var stringKey: String {
         switch self {
@@ -34,6 +36,7 @@ public enum CameraError: Error {
         case .creationFailed: "camera_error_creationFailed"
         case .zoomUpdateFailed: "camera_error_zoomUpdateFailed"
         case .focusFailed: "camera_error_focusFailed"
+        case .captureFailed: "camera_error_captureFailed"
         }
     }
 }

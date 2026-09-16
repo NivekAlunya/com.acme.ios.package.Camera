@@ -61,6 +61,11 @@ public protocol CameraProtocol: Actor {
     
     /// Switches between the front and back cameras.
     func changePosition() async throws
+    
+    /// Changes the target photo resolution.
+    /// - Parameter resolution: The `CameraResolution` to use.
+    func changeResolution(_ resolution: CameraResolution)
+    
     /// Changes the aspect ratio for the capture session.
     /// - Parameter ratio: The `CaptureSessionAspectRatio` to use.
     func changeRatio(_ ratio: CaptureSessionAspectRatio) async

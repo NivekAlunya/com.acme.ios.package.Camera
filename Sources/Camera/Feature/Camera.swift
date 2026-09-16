@@ -7,7 +7,7 @@
 
 @preconcurrency import AVFoundation
 import Foundation
-import UIKit
+import CoreImage
 import os
 
 private let logger = Logger(subsystem: "com.acme.ios.package.Camera", category: "Camera")
@@ -37,7 +37,7 @@ public actor Camera: NSObject {
     public var config: CameraConfiguration
 
     /// The stream that broadcasts camera previews and captured photos.
-    public var stream: any CameraStreamProtocol = CameraStream()
+    public var stream: any CameraStreamProtocol = CameraStream(skipFirstFrame: 2)
 
     /// The most recently captured photo.
     private(set) public var photo: PhotoCapture?
@@ -45,13 +45,12 @@ public actor Camera: NSObject {
     /// The underlying `AVCaptureSession` that manages the capture pipeline.
     public let session = AVCaptureSession()
 
-    /// A dedicated serial queue for AVCaptureSession operations.
-    /// `startRunning` and `stopRunning` are blocking calls and must not be called
-    /// on the main thread or on the actor's cooperative executor.
-    private let sessionQueue = DispatchQueue(label: "com.acme.camera.sessionQueue", qos: .userInitiated)
 
     /// The current state of the camera.
     private var state = CameraState.needSetup
+
+    /// The unique identifier of the last processed photo capture request, to prevent duplicate processing.
+    private var lastProcessedCaptureID: Int64?
 
     /// Observation for device rotation changes.
     private var rotationObservation: NSKeyValueObservation?
@@ -93,16 +92,30 @@ public actor Camera: NSObject {
     /// Processes a captured photo, converts it to a `CIImage`, and emits it through the stream.
     /// - Parameter photo: The `AVCapturePhoto` to process.
     func processPhoto(_ photo: AVCapturePhoto) async {
+        if lastProcessedCaptureID == photo.resolvedSettings.uniqueID {
+            return
+        }
+        lastProcessedCaptureID = photo.resolvedSettings.uniqueID
+
         // 1. Build the cropped CIImage for the preview/validation stream and final storage.
         guard let ciImage = photo.buildImageForRatio(config.ratio) else {
+            logger.error("Failed to build image for ratio from captured photo")
+            await self.stream.emitError(.captureFailed)
+            await self.stream.resume()
             return
         }
 
-        // 2. Convert the cropped CIImage back to Data to preserve the crop in the final output.
-        let croppedData = await ciImage.toJPEGData()
+        // 2. For default aspect ratio (no crop requested), preserve the native high-fidelity capture data directly.
+        //    For custom aspect ratios, re-encode the cropped CIImage to JPEG at high quality.
+        let finalData: Data?
+        if config.ratio == .defaultAspectRatio, let rawData = photo.fileDataRepresentation() {
+            finalData = rawData
+        } else {
+            finalData = await ciImage.toJPEGData(quality: 0.95) ?? photo.fileDataRepresentation()
+        }
         
-        // 3. Preserve the cropped data and original metadata.
-        self.photo = PhotoCapture(data: croppedData, metadata: photo.metadata)
+        // 3. Preserve the data and original metadata.
+        self.photo = PhotoCapture(data: finalData, metadata: photo.metadata)
 
         // 4. Emit the cropped image for the validation UI.
         await self.stream.emitPhoto(ciImage)
@@ -149,13 +162,6 @@ extension Camera: CameraProtocol {
             let clampedFactor = max(device.minAvailableVideoZoomFactor,
                                     min(factor, device.maxAvailableVideoZoomFactor))
             device.videoZoomFactor = clampedFactor
-
-            // Re-engage autofocus after zoom change, mirroring initial focus configuration
-            if device.isFocusModeSupported(.continuousAutoFocus) {
-                device.focusMode = .continuousAutoFocus
-            } else if device.isFocusModeSupported(.autoFocus) {
-                device.focusMode = .autoFocus
-            }
 
             config.zoom = Float(device.videoZoomFactor)
         } catch {
@@ -207,7 +213,6 @@ extension Camera: CameraProtocol {
                     throw CameraError.cameraUnavailable
                 }
                 try setup(device: device)
-                createStreams()
             case .ended:
                 createStreams()
             default:
@@ -219,14 +224,11 @@ extension Camera: CameraProtocol {
             
             let session = self.session
             await stream.resume()
-            await withCheckedContinuation { continuation in
-                sessionQueue.async {
-                    if !session.isRunning {
-                        session.startRunning()
-                    }
-                    continuation.resume()
+            await Task.detached(priority: .userInitiated) {
+                if !session.isRunning {
+                    session.startRunning()
                 }
-            }
+            }.value
             state = .started
         } catch {
             if state == .starting {
@@ -242,33 +244,27 @@ extension Camera: CameraProtocol {
         updateRotationAngle()
         setupRotationObservation()
         let session = self.session
-        await withCheckedContinuation { continuation in
-            sessionQueue.async {
-                if !session.isRunning {
-                    session.startRunning()
-                }
-                continuation.resume()
+        await Task.detached(priority: .userInitiated) {
+            if !session.isRunning {
+                session.startRunning()
             }
-        }
+        }.value
         state = .started
     }
 
     /// Pauses the camera session and stops the preview stream.
     /// Suspends the actor (non-blocking) until `stopRunning` has fully completed on the
-    /// session queue, guaranteeing the session is idle before callers like `changeDevice`
+    /// detached task, guaranteeing the session is idle before callers like `changeDevice`
     /// or `end` proceed.
     public func pause() async {
         rotationObservation?.invalidate()
         rotationObservation = nil
         let session = self.session
-        await withCheckedContinuation { continuation in
-            sessionQueue.async {
-                if session.isRunning {
-                    session.stopRunning()
-                }
-                continuation.resume()
+        await Task.detached(priority: .userInitiated) {
+            if session.isRunning {
+                session.stopRunning()
             }
-        }
+        }.value
         await stream.pause()
         state = .paused
     }
@@ -286,7 +282,12 @@ extension Camera: CameraProtocol {
         updateRotationAngle()
         await stream.pause()
         let photoSettings = await config.buildPhotoSettings()
-        photoSettings.flashMode = config.flashMode.avFlashMode
+        let desiredFlash = config.flashMode.avFlashMode
+        if self.config.photoOutput.supportedFlashModes.contains(desiredFlash) {
+            photoSettings.flashMode = desiredFlash
+        } else {
+            photoSettings.flashMode = .off
+        }
         self.config.photoOutput.capturePhoto(with: photoSettings, delegate: self)
     }
 
@@ -294,9 +295,10 @@ extension Camera: CameraProtocol {
     /// - Parameter preset: The `CaptureSessionPreset` to apply.
     public func changePreset(preset: CaptureSessionPreset = .photo) {
         session.beginConfiguration()
-        defer { session.commitConfiguration() }
         config.preset = preset
         session.sessionPreset = config.preset.avPreset
+        session.commitConfiguration()
+        config.updatePhotoOutputMaxDimensions()
     }
 
     /// Changes the active camera device.
@@ -312,6 +314,36 @@ extension Camera: CameraProtocol {
             throw CameraError.cameraUnavailable
         }
         try await changeDevice(device: device)
+    }
+    
+    /// Changes the target photo resolution.
+    /// - Parameter resolution: The `CameraResolution` to use.
+    public func changeResolution(_ resolution: CameraResolution) {
+        config.resolution = resolution
+        if #available(iOS 16.0, *) {
+            if resolution == .mp24 || resolution == .mp48 {
+                let currentDeviceSupports: Bool = {
+                    guard let device = config.deviceInput?.device else { return false }
+                    for format in device.formats {
+                        for dimensions in format.supportedMaxPhotoDimensions {
+                            let mp = (dimensions.width * dimensions.height) / 1_000_000
+                            if resolution == .mp48 && mp >= 40 { return true }
+                            if resolution == .mp24 && mp >= 20 { return true }
+                        }
+                    }
+                    return false
+                }()
+                
+                if !currentDeviceSupports,
+                   let wideCamera = config.listCaptureDevice.first(where: { $0.deviceType == .builtInWideAngleCamera }) {
+                    Task {
+                        try? await self.changeDevice(device: wideCamera)
+                    }
+                    return
+                }
+            }
+        }
+        config.updatePhotoOutputMaxDimensions()
     }
 
     /// Changes the video codec for photo capture.
@@ -340,12 +372,37 @@ extension Camera: AVCapturePhotoCaptureDelegate {
     ) {
         if let error {
             logger.error("Error capturing photo: \(error.localizedDescription)")
+            Task {
+                await self.stream.emitError(.captureFailed)
+                await self.stream.resume()
+            }
             return
         }
         Task {
             await processPhoto(photo)
         }
     }
+
+    #if !os(macOS)
+    nonisolated public func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        didFinishCapturingDeferredPhotoProxy deferredPhotoProxy: AVCaptureDeferredPhotoProxy?,
+        error: Error?
+    ) {
+        if let error {
+            logger.error("Error capturing deferred photo proxy: \(error.localizedDescription)")
+            Task {
+                await self.stream.emitError(.captureFailed)
+                await self.stream.resume()
+            }
+            return
+        }
+        guard let deferredPhotoProxy else { return }
+        Task {
+            await processPhoto(deferredPhotoProxy)
+        }
+    }
+    #endif
 }
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate Conformance
 extension Camera: AVCaptureVideoDataOutputSampleBufferDelegate {

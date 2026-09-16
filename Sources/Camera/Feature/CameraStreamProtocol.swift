@@ -19,6 +19,9 @@ public protocol CameraStreamProtocol: Actor {
     /// An asynchronous stream of `CIImage` objects representing captured photos.
     var photoStream: AsyncStream<CIImage> { get }
 
+    /// An asynchronous stream of `CameraError` objects for surfacing hardware issues.
+    var errorStream: AsyncStream<CameraError> { get }
+
     /// Emits a new preview image to the `previewStream`.
     /// - Parameter ciImage: The `CIImage` to emit.
     func emitPreview(_ ciImage: CIImage)
@@ -26,6 +29,10 @@ public protocol CameraStreamProtocol: Actor {
     /// Emits a new captured photo to the `photoStream`.
     /// - Parameter ciImage: The `CIImage` to emit.
     func emitPhoto(_ ciImage: CIImage)
+    
+    /// Emits an error to the `errorStream`.
+    /// - Parameter error: The `CameraError` to emit.
+    func emitError(_ error: CameraError)
 
     /// Pauses the emission of preview frames.
     func pause()
