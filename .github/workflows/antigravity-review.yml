@@ -90,7 +90,7 @@ jobs:
             }
           ' > request.json
 
-          # 5. Call Gemini 3.5 Flash Lite directly
+          # 5. Call Gemini API (e.g. gemini-2.0-flash or gemini-1.5-flash)
           HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" \
             -H "Content-Type: application/json" \
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}" \
@@ -116,6 +116,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          # Only attempt to comment if review.md was generated
+          if [ ! -f "review.md" ]; then
+            echo "review.md does not exist (likely skipped due to missing API key). Skipping comment."
+            exit 0
+          fi
+
           COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments \
             --jq '.[] | select(.body | contains("<!-- antigravity-pr-reviewer -->")) | .id' | head -n 1)
 
