@@ -6,14 +6,14 @@
 //
 
 import Foundation
-import UIKit
+
 import SwiftUI
 @preconcurrency import AVFoundation
 import os
 
 private let logger = Logger(subsystem: "com.acme.ios.package.Camera", category: "CameraModel")
 
-/// The `CameraModel` is an `ObservableObject` that acts as the primary view model for the camera UI.
+/// The `CameraModel` is an `@Observable` model that acts as the primary view model for the camera UI.
 /// It manages the camera's state, handles user interactions, and provides data streams for the view to consume.
 /// This class is marked as `@MainActor` to ensure that all UI updates are performed on the main thread.
 @Observable
@@ -94,6 +94,8 @@ public class CameraModel {
     var position = AVCaptureDevice.Position.back
     /// The list of available session presets.
     var presets = [CaptureSessionPreset]()
+    /// The list of supported photo resolutions.
+    var resolutions = [CameraResolution]()
     /// The list of available camera devices.
     var devices = [AVCaptureDevice]()
     /// The list of supported video formats.
@@ -102,6 +104,8 @@ public class CameraModel {
     var flashModes = [CameraFlashMode]()
     /// The currently selected session preset.
     var selectedPreset = CaptureSessionPreset.photo
+    /// The currently selected photo resolution.
+    var selectedResolution = CameraResolution.mp12
     /// The currently selected camera device.
     var selectedDevice: AVCaptureDevice?
     /// The currently selected video format.
@@ -124,6 +128,8 @@ public class CameraModel {
     private var previewTask: Task<Void, Never>?
     /// The task that listens for captured photos from the camera.
     private var photoTask: Task<Void, Never>?
+    /// The task that listens for hardware errors from the camera.
+    private var errorTask: Task<Void, Never>?
     /// The task for the most recent in-flight settings selection (preset, device, format, flash, zoom).
     /// Cancelled before starting a new one to avoid out-of-order execution.
     private var selectionTask: Task<Void, Never>?
@@ -148,21 +154,27 @@ public class CameraModel {
             self.previewMode = initialConfig.previewMode
             self.session = await camera.session
 
-            // Start the camera first — if it throws (e.g. unauthorized) we must not
-            // have already launched tasks that wait on streams which will never finish.
-            try await camera.start()
-
-            // Camera is running: now it's safe to launch the stream listeners.
+            // Attach stream listeners before camera.start() so preview frames and photo captures are never missed
             selectPreviewMode(self.previewMode)
+            photoTask?.cancel()
             photoTask = Task { await listenPhotoCapture() }
+            errorTask?.cancel()
+            errorTask = Task { await listenErrorStream() }
+
+            try await camera.start()
             await loadSettings()
         } catch let error as CameraError {
+            previewTask?.cancel()
+            photoTask?.cancel()
+            errorTask?.cancel()
             if error == .cameraUnauthorized {
                 state = .unauthorized
             }
             self.error = error
         } catch {
-            // Handle other potential errors if necessary
+            previewTask?.cancel()
+            photoTask?.cancel()
+            errorTask?.cancel()
         }
     }
 
@@ -186,6 +198,7 @@ public class CameraModel {
 
     /// Handles the user tapping the "take photo" button.
     func handleTakePhoto() async {
+        guard state != .processing else { return }
         state = .processing
         await camera.takePhoto()
     }
@@ -242,7 +255,7 @@ public class CameraModel {
 
     /// Selects a new preview mode.
     func selectPreviewMode(_ previewMode: CameraPreviewMode) {
-        logger.debug("Selecting preview mode \(previewMode)")
+        logger.debug("Selecting preview mode \(previewMode.stringKey)")
         self.previewMode = previewMode
         previewTask?.cancel()
 
@@ -267,6 +280,16 @@ public class CameraModel {
         selectionTask = Task {
             selectedPreset = preset
             await camera.changePreset(preset: preset)
+        }
+    }
+    
+    /// Selects a new target photo resolution.
+    /// Cancels any in-flight selection task before dispatching the new one.
+    func selectResolution(_ resolution: CameraResolution) {
+        selectionTask?.cancel()
+        selectionTask = Task {
+            selectedResolution = resolution
+            await camera.changeResolution(resolution)
         }
     }
 
@@ -364,10 +387,12 @@ public class CameraModel {
         formats = config.listSupportedFormat
         flashModes = config.listFlashMode
         presets = config.listPreset
+        resolutions = config.supportedResolutions
 
         selectedFlashMode = config.flashMode
         selectedPreset = config.preset
         selectedFormat = config.videoCodecType
+        selectedResolution = config.resolution
         zoom = Double(config.zoom)
         zoomRange = config.zoomRange
     }
@@ -375,6 +400,7 @@ public class CameraModel {
     /// Listens for preview frames from the camera stream and updates the `preview` property.
     private func listenCameraPreviews() async {
         for await image in await camera.stream.previewStream {
+            if Task.isCancelled { break }
             if state == .loading {
                 state = .previewing
             }
@@ -385,7 +411,19 @@ public class CameraModel {
     /// Listens for captured photos from the camera stream and updates the state.
     private func listenPhotoCapture() async {
         for await photo in await camera.stream.photoStream {
+            if Task.isCancelled { break }
             await setPhoto(photo: photo)
+        }
+    }
+
+    /// Listens for hardware errors from the camera stream and updates the state/error.
+    private func listenErrorStream() async {
+        for await err in await camera.stream.errorStream {
+            if Task.isCancelled { break }
+            if state == .processing {
+                state = .previewing
+            }
+            self.error = err
         }
     }
 
@@ -401,7 +439,10 @@ public class CameraModel {
     /// Sets the state to `validating` and displays the captured photo as a preview.
     private func setPhoto(photo: CIImage) async {
         guard let cgImage = await photo.toCGImage() else {
-            self.preview = nil
+            logger.error("Failed to render CGImage from captured photo")
+            state = .previewing
+            self.error = .captureFailed
+            await camera.resume()
             return
         }
         state = .validating
@@ -414,6 +455,7 @@ public class CameraModel {
         selectionTask?.cancel()
         previewTask?.cancel()
         photoTask?.cancel()
+        errorTask?.cancel()
         capture = nil
         await camera.end()
     }

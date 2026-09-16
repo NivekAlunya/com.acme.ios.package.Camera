@@ -7,6 +7,8 @@
 
 import AVFoundation
 import SwiftUI
+
+#if canImport(UIKit)
 import UIKit
 
 /// A custom UIView that manages the AVCaptureVideoPreviewLayer frame.
@@ -49,3 +51,4 @@ public struct NativePreviewView: UIViewRepresentable {
         view.previewLayer?.session = nil
     }
 }
+#endif

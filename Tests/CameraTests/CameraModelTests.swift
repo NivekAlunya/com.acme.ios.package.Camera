@@ -16,7 +16,6 @@ struct CameraModelTests {
         // Wait a bit for Task to process preview stream
         try? await Task.sleep(nanoseconds: 100_000_000)
         #expect(model.preview != nil, "Preview should be updated after preview stream")
-
     }
 
     @Test("CameraModel handles empty preview stream")
@@ -41,7 +40,6 @@ struct CameraModelTests {
         try? await Task.sleep(nanoseconds: 100_000_000)
         #expect(model.state == .validating, "CameraModel should be in validating state after taking a photo")
         #expect(model.preview != nil, "Preview should be updated after taking a photo")
-
     }
 
     @Test("CameraModel switches camera position")
@@ -50,12 +48,11 @@ struct CameraModelTests {
         let mock = MockCamera()
         let model = CameraModel(camera: mock)
         await model.start()
-        let initialPosition = await model.position
+        let initialPosition = model.position
         await model.handleSwitchPosition()
         try? await Task.sleep(nanoseconds: 100_000_000)
-        let newPosition = await model.position
+        let newPosition = model.position
         #expect(initialPosition != newPosition, "Camera position should have changed")
-
     }
 
     @Test("CameraModel changes capture preset")
@@ -64,10 +61,10 @@ struct CameraModelTests {
         let mock = MockCamera()
         let model = CameraModel(camera: mock)
         await model.start()
-        let initialPreset = await model.selectedPreset
+        let initialPreset = model.selectedPreset
         model.selectPreset(.hd1920x1080)
         await Task.yield()
-        let newPreset = await model.selectedPreset
+        let newPreset = model.selectedPreset
         #expect(initialPreset != newPreset, "Capture preset should have changed")
         #expect(newPreset == .hd1920x1080, "New preset should be hd1920x1080")
     }
@@ -80,9 +77,8 @@ struct CameraModelTests {
         await model.start()
         model.selectFlashMode(.auto) // Use .auto instead of .on
         try? await Task.sleep(nanoseconds: 100_000_000)
-        let newFlashMode = await model.selectedFlashMode
+        let newFlashMode = model.selectedFlashMode
         #expect(newFlashMode == .auto, "New flash mode should be auto")
-
     }
 
     @Test("CameraModel changes video codec")
@@ -93,7 +89,7 @@ struct CameraModelTests {
         await model.start()
         model.selectFormat(.proRes422) // Use a different codec
         await Task.yield()
-        let newCodec = await model.selectedFormat
+        let newCodec = model.selectedFormat
         #expect(newCodec == .proRes422, "New video codec should be proRes422")
     }
 
@@ -105,26 +101,25 @@ struct CameraModelTests {
         await model.start()
         
         // Test cycling through aspect ratios
-        let initialRatio = await model.ratio
+        let initialRatio = model.ratio
         #expect(initialRatio == .defaultAspectRatio, "Initial ratio should be defaultAspectRatio")
         
         await model.handleSwitchRatio()
-        let ratio1 = await model.ratio
+        let ratio1 = model.ratio
         #expect(ratio1 == .ratio_1_1, "After first switch, ratio should be 1:1")
         
         await model.handleSwitchRatio()
-        let ratio2 = await model.ratio
+        let ratio2 = model.ratio
         #expect(ratio2 == .ratio_4_3, "After second switch, ratio should be 4:3")
         
         await model.handleSwitchRatio()
-        let ratio3 = await model.ratio
+        let ratio3 = model.ratio
         #expect(ratio3 == .ratio_16_9, "After third switch, ratio should be 16:9")
         
         await model.handleSwitchRatio()
-        let ratio4 = await model.ratio
+        let ratio4 = model.ratio
         #expect(ratio4 == .defaultAspectRatio, "After fourth switch, ratio should cycle back to default")
     }
-
 
     @Test("CameraModel accepts photo")
     @MainActor
@@ -141,7 +136,6 @@ struct CameraModelTests {
         await model.handleAcceptPhoto()
 
         #expect(model.state == .accepted((photo, await mock.config)), "CameraModel should be in accepted state")
-
     }
 
     @Test("CameraModel rejects photo")
@@ -155,6 +149,42 @@ struct CameraModelTests {
 
         await model.handleRejectPhoto()
         #expect(model.state == .previewing, "CameraModel should be in previewing state after rejecting a photo")
+    }
 
+    @Test("CameraModel recovers from capture error via error stream")
+    @MainActor
+    func testCaptureErrorRecovery() async throws {
+        let mock = MockCamera(previewImages: [], photoImages: [])
+        let model = CameraModel(camera: mock)
+        await model.start()
+
+        // Manually force processing state (as handleTakePhoto would do)
+        model.state = .processing
+
+        // Simulate a capture failure being emitted directly through the stream
+        await mock.stream.emitError(.captureFailed)
+
+        // Give the error task time to process
+        try? await Task.sleep(nanoseconds: 100_000_000)
+
+        #expect(model.state == .previewing, "State should recover to previewing after a capture error")
+        #expect(model.error == .captureFailed, "CameraModel.error should be set to .captureFailed")
+    }
+
+    @Test("CameraModel changes photo resolution")
+    @MainActor
+    func testChangeResolution() async throws {
+        let mock = MockCamera()
+        let model = CameraModel(camera: mock)
+        await model.start()
+
+        model.selectResolution(.mp48)
+        await Task.yield()
+
+        let newResolution = model.selectedResolution
+        #expect(newResolution == .mp48, "Resolution should be updated to 48MP")
+
+        let configResolution = await mock.config.resolution
+        #expect(configResolution == .mp48, "Camera config resolution should also be 48MP")
     }
 }

@@ -14,13 +14,21 @@ extension AVCapturePhoto: PhotoData {
     }
     
     public func buildImageForRatio(_ ratio: CaptureSessionAspectRatio) -> CIImage? {
-        guard let data = fileDataRepresentation(),
-              let ciImage = CIImage(data: data, options: [.applyOrientationProperty: true])
-        else {
-            return nil
+        var baseImage: CIImage?
+        
+        if let data = fileDataRepresentation(),
+           let ciImage = CIImage(data: data, options: [.applyOrientationProperty: true]) {
+            baseImage = ciImage
+        } else if let cgImage = cgImageRepresentation() {
+            baseImage = CIImage(cgImage: cgImage)
+        } else if let pixelBuffer = pixelBuffer {
+            baseImage = CIImage(cvPixelBuffer: pixelBuffer)
+        } else if let previewPixelBuffer = previewPixelBuffer {
+            baseImage = CIImage(cvPixelBuffer: previewPixelBuffer)
         }
-    
-        return ciImage.cropped(to: ratio)
+        
+        guard let baseImage else { return nil }
+        return baseImage.cropped(to: ratio)
     }
 
 }

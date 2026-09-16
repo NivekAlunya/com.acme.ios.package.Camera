@@ -17,8 +17,8 @@ extension CIImage {
             return self
         }
         
-        let offsetX = (self.extent.width - targetSize.width) / 2
-        let offsetY = (self.extent.height - targetSize.height) / 2
+        let offsetX = self.extent.minX + (self.extent.width - targetSize.width) / 2
+        let offsetY = self.extent.minY + (self.extent.height - targetSize.height) / 2
         
         return self.cropped(to: CGRect(
             origin: CGPoint(x: offsetX, y: offsetY),

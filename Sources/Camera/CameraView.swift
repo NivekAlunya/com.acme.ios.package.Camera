@@ -195,15 +195,18 @@ public struct CameraView: View {
                 showErrorAlert = true
             }
         }
-        .alert(isPresented: $showErrorAlert) {
-            Alert(
-                title: Text("alert_error_camera".cameraLocalized(bundle: bundle)),
-                message: Text((model.error?.stringKey ?? "error_unknown").cameraLocalized(bundle: bundle)),
-                dismissButton: .default(Text("OK".cameraLocalized(bundle: bundle))) {
+        .alert(
+            Text("alert_error_camera".cameraLocalized(bundle: bundle)),
+            isPresented: $showErrorAlert,
+            actions: {
+                Button("OK".cameraLocalized(bundle: bundle)) {
                     model.error = nil
                 }
-            )
-        }
+            },
+            message: {
+                Text((model.error?.stringKey ?? "error_unknown").cameraLocalized(bundle: bundle))
+            }
+        )
         .sheet(isPresented: $isSettingShown) {
             SettingsView(model: model)
         }
@@ -425,16 +428,23 @@ extension CameraView {
                         Label("option_title_flash_mode".cameraLocalized(bundle: bundle), systemImage: "bolt.fill")
                     }
                     .tag(4)
+
+                ResolutionSettingsView(model: model)
+                    .tabItem {
+                        Label("option_title_resolution".cameraLocalized(bundle: bundle), systemImage: "rectangle.checkered")
+                    }
+                    .tag(5)
             }
             .presentationDetents([.medium, .large])
             .presentationBackground(.thinMaterial)
-            .accentColor(color)
+            .tint(color)
             .onChange(of: tabSelection) {
                 color = switch tabSelection {
                 case 1: .blue
                 case 2: .green
                 case 3: .red
                 case 4: .yellow
+                case 5: .purple
                 default:
                         .black
                 }
@@ -534,6 +544,25 @@ extension CameraView {
                         ListRow(text: Text(flashMode.stringKey.cameraLocalized(bundle: bundle)),
                                 selected: flashMode == model.selectedFlashMode) {
                             model.selectFlashMode(flashMode)
+                        }
+                    }
+                }
+            }
+            .applySettingListStyle()
+        }
+    }
+    
+    /// A settings view for selecting the resolution.
+    struct ResolutionSettingsView: View {
+        @Environment(\.bundle) var bundle
+        let model: CameraModel
+        var body: some View {
+            List {
+                Section(header: Text("option_title_resolution".cameraLocalized(bundle: bundle)).bold()) {
+                    ForEach(model.resolutions, id: \.self) { resolution in
+                        ListRow(text: Text(resolution.stringKey.cameraLocalized(bundle: bundle)),
+                                selected: resolution == model.selectedResolution) {
+                            model.selectResolution(resolution)
                         }
                     }
                 }

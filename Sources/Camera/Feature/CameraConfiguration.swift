@@ -57,6 +57,9 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
     
     /// The aspect ratio for the capture session.
     public var ratio: CaptureSessionAspectRatio = .defaultAspectRatio
+    
+    /// The target photo resolution (Megapixels).
+    public var resolution: CameraResolution = .mp12
 
     /// A list of available capture devices for the current position.
     public private(set) var listCaptureDevice = [AVCaptureDevice]()
@@ -69,6 +72,9 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
 
     /// A list of supported session presets.
     public private(set) var listPreset = [CaptureSessionPreset]()
+    
+    /// A list of supported photo resolutions.
+    public private(set) var supportedResolutions: [CameraResolution] = [.mp12]
 
     /// The available zoom range for the current device.
     public private(set) var zoomRange = 1.0...1.0
@@ -95,6 +101,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         position: AVCaptureDevice.Position = .back,
         quality: AVCapturePhotoOutput.QualityPrioritization = .balanced,
         preset: CaptureSessionPreset = .photo,
+        resolution: CameraResolution = .mp12,
         photoOutput: AVCapturePhotoOutput = AVCapturePhotoOutput(),
         aspectRatio: CaptureSessionAspectRatio = .defaultAspectRatio,
         previewMode: CameraPreviewMode = .streaming
@@ -106,6 +113,7 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         self.position = position
         self.quality = quality
         self.preset = preset
+        self.resolution = resolution
         self.photoOutput = photoOutput
         self.ratio = aspectRatio
         self.previewMode = previewMode
@@ -181,11 +189,42 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         flashMode = isFlashAvailable ? .auto : .unavailable
         listFlashMode = flashMode.modes
         zoom = 1.0
+        supportedResolutions = [.mp12] // Baseline
+        
         if let device = deviceInput?.device {
             let mx = min(maxZoom, device.maxAvailableVideoZoomFactor)
             zoomRange = Double(device.minAvailableVideoZoomFactor)...(Double(mx))
             self.rotationCoordinator = AVCaptureDevice.RotationCoordinator(
                 device: device, previewLayer: nil)
+            
+            if #available(iOS 16.0, *) {
+                var availableMPs: Set<CameraResolution> = [.mp12]
+                for format in device.formats {
+                    for dimensions in format.supportedMaxPhotoDimensions {
+                        let pixels = dimensions.width * dimensions.height
+                        let mp = pixels / 1_000_000
+                        if mp >= 40 { availableMPs.insert(.mp48) }
+                        else if mp >= 20 { availableMPs.insert(.mp24) }
+                    }
+                }
+                
+                // If the active device is a multi-lens virtual device (e.g. builtInTripleCamera),
+                // AVFoundation virtual device formats are capped at lower resolutions.
+                // Check if any physical wide-angle camera on the current position supports 24MP or 48MP.
+                if !availableMPs.contains(.mp48) || !availableMPs.contains(.mp24) {
+                    for dev in listCaptureDevice where dev.deviceType == .builtInWideAngleCamera {
+                        for format in dev.formats {
+                            for dimensions in format.supportedMaxPhotoDimensions {
+                                let mp = (dimensions.width * dimensions.height) / 1_000_000
+                                if mp >= 40 { availableMPs.insert(.mp48) }
+                                else if mp >= 20 { availableMPs.insert(.mp24) }
+                            }
+                        }
+                    }
+                }
+                
+                supportedResolutions = Array(availableMPs).sorted()
+            }
         } else {
             zoomRange = 1...1
         }
@@ -195,6 +234,22 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
     mutating func setupOutput() {
         listSupportedFormat = photoOutput.availablePhotoCodecTypes.compactMap {
             VideoCodecType(avVideoCodecType: $0)
+        }
+        if #available(iOS 17.0, *) {
+            if photoOutput.isAutoDeferredPhotoDeliverySupported {
+                photoOutput.isAutoDeferredPhotoDeliveryEnabled = true
+            }
+        }
+        updatePhotoOutputMaxDimensions()
+    }
+
+    /// Updates `photoOutput.maxPhotoDimensions` to the largest dimensions supported by the current active format.
+    func updatePhotoOutputMaxDimensions() {
+        if #available(iOS 16.0, *), let device = deviceInput?.device {
+            let supported = device.activeFormat.supportedMaxPhotoDimensions
+            if let maxDimensions = supported.max(by: { ($0.width * $0.height) < ($1.width * $1.height) }) {
+                photoOutput.maxPhotoDimensions = maxDimensions
+            }
         }
     }
 
@@ -217,8 +272,61 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
             photoSettings = AVCapturePhotoSettings()
         }
 
+        if #available(iOS 16.0, *), let device = deviceInput?.device {
+            // Find dimensions matching the requested resolution from the active format
+            let activeFormat = device.activeFormat
+            var targetDimensions: CMVideoDimensions? = nil
+            
+            for dimensions in activeFormat.supportedMaxPhotoDimensions {
+                let mp = (dimensions.width * dimensions.height) / 1_000_000
+                if resolution == .mp48 && mp >= 40 {
+                    if let existing = targetDimensions {
+                        if (dimensions.width * dimensions.height) > (existing.width * existing.height) {
+                            targetDimensions = dimensions
+                        }
+                    } else {
+                        targetDimensions = dimensions
+                    }
+                } else if resolution == .mp24 && mp >= 20 && mp < 40 {
+                    if let existing = targetDimensions {
+                        if (dimensions.width * dimensions.height) > (existing.width * existing.height) {
+                            targetDimensions = dimensions
+                        }
+                    } else {
+                        targetDimensions = dimensions
+                    }
+                } else if resolution == .mp12 && mp < 20 {
+                    if let existing = targetDimensions {
+                        if (dimensions.width * dimensions.height) > (existing.width * existing.height) {
+                            targetDimensions = dimensions
+                        }
+                    } else {
+                        targetDimensions = dimensions
+                    }
+                }
+            }
+            
+            if let targetDimensions {
+                let targetPixels = targetDimensions.width * targetDimensions.height
+                let currentMax = photoOutput.maxPhotoDimensions.width * photoOutput.maxPhotoDimensions.height
+                if targetPixels > currentMax {
+                    photoOutput.maxPhotoDimensions = targetDimensions
+                }
+                let safeMaxPixels = photoOutput.maxPhotoDimensions.width * photoOutput.maxPhotoDimensions.height
+                if targetPixels <= safeMaxPixels {
+                    photoSettings.maxPhotoDimensions = targetDimensions
+                } else {
+                    photoSettings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
+                }
+            }
+        }
+
         photoSettings.flashMode = flashMode.avFlashMode
-        photoSettings.photoQualityPrioritization = quality
+        if resolution == .mp48 || resolution == .mp24 {
+            photoSettings.photoQualityPrioritization = .quality
+        } else {
+            photoSettings.photoQualityPrioritization = quality
+        }
         return photoSettings
     }
 
@@ -238,13 +346,13 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
         try self.setupCaptureDeviceOutput(forSession: session, delegate: delegate)
 
         session.beginConfiguration()
-        defer { session.commitConfiguration() }
-        
         listPreset = CaptureSessionPreset.allCases.filter({ session.canSetSessionPreset($0.avPreset) })
         // Find the actual preset in the list, or fallback to the first available one.
         preset = listPreset.first(where: { $0 == preset }) ?? listPreset.first ?? .inputPriority
         session.sessionPreset = preset.avPreset
+        session.commitConfiguration()
         
+        updatePhotoOutputMaxDimensions()
     }
 
     /// Sets up the photo and video outputs for the capture session.
@@ -257,6 +365,12 @@ public struct CameraConfiguration: Hashable, @unchecked Sendable {
 
         guard session.canAddOutput(photoOutput) else {
             throw CameraError.cannotAddOutput
+        }
+        photoOutput.maxPhotoQualityPrioritization = .quality
+        if #available(iOS 17.0, *) {
+            if photoOutput.isAutoDeferredPhotoDeliverySupported {
+                photoOutput.isAutoDeferredPhotoDeliveryEnabled = true
+            }
         }
         session.addOutput(photoOutput)
 

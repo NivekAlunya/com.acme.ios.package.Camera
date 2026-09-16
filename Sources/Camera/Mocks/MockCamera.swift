@@ -116,6 +116,10 @@ actor MockCamera: CameraProtocol {
         config.switchPosition()
     }
 
+    func changeResolution(_ resolution: CameraResolution) {
+        config.resolution = resolution
+    }
+
     func end() async {
         await stream.finish()
     }
