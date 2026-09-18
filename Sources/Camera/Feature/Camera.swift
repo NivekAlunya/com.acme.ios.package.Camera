@@ -366,16 +366,20 @@ extension Camera: CameraProtocol {
 
 // MARK: - AVCapturePhotoCaptureDelegate Conformance
 extension Camera: AVCapturePhotoCaptureDelegate {
+    nonisolated private func handleCaptureError(_ message: String, error: Error) {
+        logger.error("\(message): \(error.localizedDescription)")
+        Task {
+            await self.stream.emitError(.captureFailed)
+            await self.stream.resume()
+        }
+    }
+
     nonisolated public func photoOutput(
         _ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,
         error: Error?
     ) {
         if let error {
-            logger.error("Error capturing photo: \(error.localizedDescription)")
-            Task {
-                await self.stream.emitError(.captureFailed)
-                await self.stream.resume()
-            }
+            handleCaptureError("Error capturing photo", error: error)
             return
         }
         Task {
@@ -390,11 +394,7 @@ extension Camera: AVCapturePhotoCaptureDelegate {
         error: Error?
     ) {
         if let error {
-            logger.error("Error capturing deferred photo proxy: \(error.localizedDescription)")
-            Task {
-                await self.stream.emitError(.captureFailed)
-                await self.stream.resume()
-            }
+            handleCaptureError("Error capturing deferred photo proxy", error: error)
             return
         }
         guard let deferredPhotoProxy else { return }
