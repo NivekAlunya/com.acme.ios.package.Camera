@@ -29,6 +29,7 @@ jobs:
       - name: Generate PR Diff & Review
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.ANTIGRAVITY_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.7-flash' }}
           PR_BASE: "origin/${{ github.base_ref }}"
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -90,28 +91,29 @@ jobs:
             }
           ' > request.json
 
-          # Call Gemini 3.7 Flash with jitter and exponential backoff retry for 429 and 503
-          MAX_RETRIES=4
-          RETRY_DELAY=5
+          # Call Gemini API with progressive delay (attempt * 15s) for 429 and 503
+          MAX_RETRIES=5
           SUCCESS=false
 
           # Initial jitter (0-5s) to avoid burst collision when multiple packages trigger concurrently
           sleep $((RANDOM % 6))
 
           for attempt in $(seq 1 $MAX_RETRIES); do
-            echo "Calling Gemini 3.7 Flash API (attempt $attempt of $MAX_RETRIES)..."
+            echo "Calling Gemini API with model '${GEMINI_MODEL}' (attempt $attempt of $MAX_RETRIES)..."
             HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" \
               -H "Content-Type: application/json" \
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}" \
+              "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}" \
               -d @request.json)
 
             if [ "$HTTP_STATUS" -eq 200 ]; then
               SUCCESS=true
               break
             elif [ "$HTTP_STATUS" -eq 429 ] || [ "$HTTP_STATUS" -eq 503 ]; then
-              echo "⚠️ HTTP $HTTP_STATUS received (Rate Limited / Overloaded). Retrying in ${RETRY_DELAY}s..."
-              sleep $RETRY_DELAY
-              RETRY_DELAY=$((RETRY_DELAY * 2))
+              if [ "$attempt" -lt "$MAX_RETRIES" ]; then
+                RETRY_DELAY=$((attempt * 15))
+                echo "⚠️ HTTP $HTTP_STATUS received (High Demand / Rate Limited). Retrying in ${RETRY_DELAY}s (attempt $attempt of $MAX_RETRIES)..."
+                sleep $RETRY_DELAY
+              fi
             else
               echo "❌ API request failed with unrecoverable HTTP $HTTP_STATUS:"
               cat response.json
@@ -132,7 +134,7 @@ jobs:
           jq -r '.candidates[0].content.parts[0].text // "Review completed with no findings."' response.json >> review.md
           echo "" >> review.md
           echo "---" >> review.md
-          echo "*Reviewed by Antigravity Agent on commit \`${GITHUB_SHA:0:7}\`*" >> review.md
+          echo "*Reviewed by Antigravity Agent using \`${GEMINI_MODEL}\` on commit \`${GITHUB_SHA:0:7}\`*" >> review.md
 
       - name: Post or Update PR Comment
         env:
